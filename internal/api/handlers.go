@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 )
@@ -22,15 +23,24 @@ func (s *Server) StartSSE() http.HandlerFunc {
 			http.Error(w, "Streaming not supported", http.StatusInternalServerError)
 		}
 
-		sseW := &SseWriterInterceptor{w}
+		tracksChannel, unsubscribe := s.service.SubscribeForTracks()
+		defer unsubscribe()
 
+		sseW := &SseWriterInterceptor{w}
 		for {
 			select {
 			case <-r.Context().Done():
 				return
-			case track := <-s.service.Tracks:
+			case track := <-tracksChannel:
+
 				s.log.Info("New track", "track", track)
-				if _, err := fmt.Fprintf(sseW, track); err != nil {
+				trackJson, err := json.Marshal(track)
+				if err != nil {
+					s.log.Error("Error while converting struct to JSON", err)
+					continue
+				}
+
+				if _, err := fmt.Fprintf(sseW, string(trackJson)); err != nil {
 					w.WriteHeader(http.StatusInternalServerError)
 					break
 				}

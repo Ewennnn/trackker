@@ -3,26 +3,66 @@ package service
 import (
 	"bufio"
 	"djtracker/internal/config"
+	"djtracker/internal/model"
+	"djtracker/internal/repository"
 	"errors"
 	"io"
 	"log/slog"
 	"os"
 	"strings"
+	"sync"
 )
 
 type Service struct {
-	log    *slog.Logger
-	config *config.Config
-	reader *bufio.Reader
-	Tracks chan string
+	log           *slog.Logger
+	config        *config.Config
+	repo          *repository.Repository
+	reader        *bufio.Reader
+	liveTracklist chan string
+
+	mu      sync.RWMutex
+	clients map[int]chan *model.Track
+	nextId  int
 }
 
-func New(log *slog.Logger, config *config.Config) *Service {
+func New(log *slog.Logger, config *config.Config, repo *repository.Repository) *Service {
 	return &Service{
-		log:    log,
-		config: config,
-		Tracks: make(chan string, 1),
+		log:           log,
+		config:        config,
+		repo:          repo,
+		liveTracklist: make(chan string, 1),
+
+		clients: make(map[int]chan *model.Track),
 	}
+}
+
+// SubscribeForTracks Créer un nouveau channel abonné à la réception des tracks
+func (s *Service) SubscribeForTracks() (chan *model.Track, func()) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	channel := make(chan *model.Track, 1)
+
+	id := s.nextId
+	s.nextId++
+	s.clients[id] = channel
+
+	s.log.Info("Client just subscribed", "id", id)
+	return channel, func() {
+		s.unsubscribeForTracks(id)
+	}
+}
+
+// unsubscribeForTracks Désabonne et supprime un channel abonné à la réception des tracks
+func (s *Service) unsubscribeForTracks(id int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if ch, ok := s.clients[id]; ok {
+		close(ch)
+		delete(s.clients, id)
+	}
+	s.log.Info("Client just unsubscribe", "id", id)
 }
 
 func (s *Service) StartTracking() error {
@@ -40,11 +80,46 @@ func (s *Service) StartTracking() error {
 		return err
 	}
 
-	go s.readTracks(file, s.Tracks)
+	go s.readTracks(file)
+	go s.analyseTracks()
 	return nil
 }
 
-func (s *Service) readTracks(file *os.File, channel chan string) {
+// analyseTracks Lit les tracks brutes reçues de liveTracklist
+// Transfer les informations de la Track vers le channel Tracks
+func (s *Service) analyseTracks() {
+	for {
+		select {
+		case trackText := <-s.liveTracklist:
+			var track = &model.Track{
+				Name: trackText,
+			}
+
+			s.repo.AddTrackToHistory(track)
+			go s.broadcastTrack(track)
+		default:
+			continue
+		}
+	}
+}
+
+// broadcastTrack Diffuse à tous les clients abonnés lorsqu'une nouvelle track est diffusée
+func (s *Service) broadcastTrack(track *model.Track) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	s.log.Info("Receive track to broadcast to clients: " + track.Name)
+	for _, ch := range s.clients {
+		select {
+		case ch <- track:
+		default:
+		}
+	}
+}
+
+// readTracks Lit le fichier tracklist de VirtualDJ
+// Transfer les informations brutes vers le channel liveTracklist
+func (s *Service) readTracks(file *os.File) {
 	reader := bufio.NewReader(file)
 	defer s.handleClose(file)
 	for {
@@ -57,7 +132,7 @@ func (s *Service) readTracks(file *os.File, channel chan string) {
 		}
 		data = strings.TrimRight(data, "\r\n")
 
-		channel <- data
+		s.liveTracklist <- data
 	}
 }
 
