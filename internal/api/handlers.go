@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 )
@@ -27,28 +26,30 @@ func (s *Server) ListenForTracksSSE() http.HandlerFunc {
 		tracksChannel, unsubscribe := s.service.SubscribeForTracks()
 		defer unsubscribe()
 
-		sseW := &SseWriterInterceptor{w}
+		sseW := &SseWriter{w}
 		ping := time.NewTicker(1 * time.Second)
 		for {
 			select {
 			case <-r.Context().Done():
 				return
 			case <-ping.C:
-				if _, err := fmt.Fprintf(sseW, "keep-alive"); err != nil {
+				if _, err := sseW.Ping(); err != nil {
 					s.log.Error("Failed to send ping", err)
 					continue
 				}
 				flusher.Flush()
 			case track := <-tracksChannel:
-
-				s.log.Info("New track", "track", track)
 				trackJson, err := json.Marshal(track)
 				if err != nil {
 					s.log.Error("Error while converting struct to JSON", err)
 					continue
 				}
 
-				if _, err := fmt.Fprintf(sseW, string(trackJson)); err != nil {
+				packet := &SsePacket{
+					Event: "track",
+					Data:  string(trackJson),
+				}
+				if err := sseW.WritePacket(packet); err != nil {
 					w.WriteHeader(http.StatusInternalServerError)
 					break
 				}
