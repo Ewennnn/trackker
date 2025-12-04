@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 )
 
 func (s *Server) LoadIndex() http.HandlerFunc {
@@ -12,7 +13,7 @@ func (s *Server) LoadIndex() http.HandlerFunc {
 	}
 }
 
-func (s *Server) StartSSE() http.HandlerFunc {
+func (s *Server) ListenForTracksSSE() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
@@ -27,10 +28,17 @@ func (s *Server) StartSSE() http.HandlerFunc {
 		defer unsubscribe()
 
 		sseW := &SseWriterInterceptor{w}
+		ping := time.NewTicker(1 * time.Second)
 		for {
 			select {
 			case <-r.Context().Done():
 				return
+			case <-ping.C:
+				if _, err := fmt.Fprintf(sseW, "keep-alive"); err != nil {
+					s.log.Error("Failed to send ping", err)
+					continue
+				}
+				flusher.Flush()
 			case track := <-tracksChannel:
 
 				s.log.Info("New track", "track", track)

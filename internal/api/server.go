@@ -33,7 +33,7 @@ func (s *Server) Start() error {
 	mux.Handle("GET /static/", http.StripPrefix("/static/", fs))
 
 	mux.Handle("GET /", s.LoadIndex())
-	mux.Handle("GET /events", s.StartSSE())
+	mux.Handle("GET /events", s.ListenForTracksSSE())
 
 	server := &http.Server{
 		Addr:    fmt.Sprintf("%s:%s", s.config.Server.BindAddress, s.config.Server.Port),
