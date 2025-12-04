@@ -88,18 +88,13 @@ func (s *Service) StartTracking() error {
 // analyseTracks Lit les tracks brutes reçues de liveTracklist
 // Transfer les informations de la Track vers le channel Tracks
 func (s *Service) analyseTracks() {
-	for {
-		select {
-		case trackText := <-s.liveTracklist:
-			var track = &model.Track{
-				Name: trackText,
-			}
-
-			s.repo.AddTrackToHistory(track)
-			go s.broadcastTrack(track)
-		default:
-			continue
+	for trackText := range s.liveTracklist {
+		track := &model.Track{
+			Name: trackText,
 		}
+
+		s.repo.AddTrackToHistory(track)
+		s.broadcastTrack(track)
 	}
 }
 
@@ -110,10 +105,7 @@ func (s *Service) broadcastTrack(track *model.Track) {
 
 	s.log.Info("Receive track to broadcast to clients: " + track.Name)
 	for _, ch := range s.clients {
-		select {
-		case ch <- track:
-		default:
-		}
+		ch <- track
 	}
 }
 
