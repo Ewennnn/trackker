@@ -10,6 +10,9 @@ type Config struct {
 		BindAddress string `yaml:"bind_address"`
 		Port        string
 	}
+	Database struct {
+		Path string
+	}
 	Tracker struct {
 		Path string
 	}

@@ -19,7 +19,7 @@ type Service struct {
 	reader        *bufio.Reader
 	liveTracklist chan string
 
-	trackBroadcaster *Broadcaster[*model.Track]
+	trackBroadcaster *Broadcaster[*model.TrackDTO]
 }
 
 func New(log *slog.Logger, config *config.Config, repo *repository.Repository) *Service {
@@ -29,12 +29,12 @@ func New(log *slog.Logger, config *config.Config, repo *repository.Repository) *
 		repo:          repo,
 		liveTracklist: make(chan string, 1),
 
-		trackBroadcaster: NewBroadcaster[*model.Track](log),
+		trackBroadcaster: NewBroadcaster[*model.TrackDTO](log),
 	}
 }
 
 // SubscribeForTracks Créer un nouveau channel abonné à la réception des tracks
-func (s *Service) SubscribeForTracks() (chan *model.Track, func()) {
+func (s *Service) SubscribeForTracks() (chan *model.TrackDTO, func()) {
 	return s.trackBroadcaster.Subscribe(1)
 }
 
@@ -59,10 +59,10 @@ func (s *Service) StartTracking() error {
 }
 
 // analyseTracks Lit les tracks brutes reçues de liveTracklist
-// Transfer les informations de la Track vers le channel Tracks
+// Transfer les informations de la TrackDTO vers le channel Tracks
 func (s *Service) analyseTracks() {
 	for trackText := range s.liveTracklist {
-		track := &model.Track{
+		track := &model.TrackDTO{
 			Name: trackText,
 		}
 
