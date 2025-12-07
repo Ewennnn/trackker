@@ -21,6 +21,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	if err := conf.Check(); err != nil {
+		log.Fatal(err)
+	}
 
 	db, err := database.Init(conf)
 	if err != nil {

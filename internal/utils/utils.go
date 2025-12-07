@@ -1,6 +1,11 @@
 package utils
 
-import "strings"
+import (
+	"errors"
+	"io/fs"
+	"os"
+	"strings"
+)
 
 func SafeTrim(data *string) *string {
 	if data == nil {
@@ -11,4 +16,15 @@ func SafeTrim(data *string) *string {
 		return nil
 	}
 	return &v
+}
+
+func Exists(path string) bool {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true
+	}
+	if errors.Is(err, fs.ErrNotExist) {
+		return false
+	}
+	return false
 }

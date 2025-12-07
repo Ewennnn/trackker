@@ -41,7 +41,7 @@ func (s *Service) SubscribeForTracks() (chan *model.TrackDTO, func()) {
 }
 
 func (s *Service) StartTracking() error {
-	file, err := os.Open(s.config.Tracker.Path)
+	file, err := os.Open(s.config.Tracker.History.Path)
 	if err != nil {
 		return err
 	}

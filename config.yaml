@@ -6,4 +6,9 @@ database:
   path: ./data/data.db
 
 tracker:
-  path: C:\Users\ewenb\AppData\Local\VirtualDJ\History\tracklist.txt
+  history:
+    path: C:\Users\ewenb\AppData\Local\VirtualDJ\History\tracklist.txt
+  source:
+    paths:
+      - C:\Users\ewenb\Music\Musiques de fond
+      - C:\Users\ewenb\Music\Evyntia
