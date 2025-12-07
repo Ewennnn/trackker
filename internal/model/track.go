@@ -13,7 +13,7 @@ type Track struct {
 }
 
 type TrackDTO struct {
-	Artist *string `json:"artist"`
+	Artist *string `json:"artist,omitempty"`
 	Name   string  `json:"name"`
 	PlayAt string  `json:"play_at"`
 }
