@@ -41,6 +41,27 @@ func (s *Service) SubscribeForTracks() (chan *model.TrackDTO, func()) {
 	return s.trackBroadcaster.Subscribe(1)
 }
 
+// GetCurrentTrack Récupère la track actuelle et l'envoie dans le channel
+func (s *Service) GetCurrentTrack() *model.TrackDTO {
+	track, err := s.repo.FindLastTrack()
+	if err != nil {
+		s.log.Error("Failed to retrieve current track", err)
+		return nil
+	}
+
+	if track == nil {
+		s.log.Debug("No current track was found")
+		return nil
+	}
+
+	if track.IsFinished(time.Now()) {
+		s.log.Debug("Last track finished")
+		return nil
+	}
+
+	return track.ToDTO()
+}
+
 func (s *Service) StartTracking() error {
 	tracklistFile, err := os.Open(s.config.Tracker.History.Path)
 	if err != nil {
@@ -71,7 +92,7 @@ func (s *Service) analyseTracks() {
 			continue
 		}
 
-		track := &model.TrackModel{
+		track := &model.Track{
 			Artist: utils.SafeTrim(parsedTrack.Artist),
 			Name:   strings.TrimSpace(parsedTrack.Name),
 			PlayAt: time.Now(),
@@ -81,7 +102,7 @@ func (s *Service) analyseTracks() {
 		fileTrackData, err := s.findTrackFile(track.Name)
 		if err != nil {
 			s.log.Error("Track file not found", "track", track.Name)
-			s.repo.AddTrackToHistory(track.ToEntity())
+			s.repo.AddTrackToHistory(track)
 			s.trackBroadcaster.Broadcast(track.ToDTO())
 			continue
 		}
@@ -92,7 +113,7 @@ func (s *Service) analyseTracks() {
 		trackFile, err := os.Open(fileTrackData.Path)
 		if err != nil {
 			s.log.Error("Failed to open track file", "path", fileTrackData.Path)
-			s.repo.AddTrackToHistory(track.ToEntity())
+			s.repo.AddTrackToHistory(track)
 			s.trackBroadcaster.Broadcast(track.ToDTO())
 			continue
 		}
@@ -112,7 +133,7 @@ func (s *Service) analyseTracks() {
 		}
 
 		utils.SafeClose(trackFile, s.log)
-		s.repo.AddTrackToHistory(track.ToEntity())
+		s.repo.AddTrackToHistory(track)
 		s.trackBroadcaster.Broadcast(track.ToDTO())
 	}
 }

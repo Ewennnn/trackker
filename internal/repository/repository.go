@@ -76,12 +76,61 @@ func (r *Repository) createNewEvent(date time.Time) error {
 
 func (r *Repository) AddTrackToHistory(track *model.Track) {
 	_, err := r.db.Exec(`
-		INSERT INTO tracks (event_id, artist, name, play_at, path) VALUES (?, ?, ?, ?, ?)
-	`, r.event.ID, track.Artist, track.Name, track.PlayAt, track.Path)
+		INSERT INTO tracks (event_id, artist, name, play_at, duration, cover, path) VALUES (?, ?, ?, ?, ?, ?, ?)
+	`, r.event.ID, track.Artist, track.Name, track.PlayAt, track.Duration, track.Cover, track.Path)
 
 	if err != nil {
 		r.log.Warn("Failed to insert track into history", "event", r.event.ID, "track", fmt.Sprintf("%#v", track))
 	} else {
 		r.log.Info("Track successfully saved", "event", r.event.ID, "track", fmt.Sprintf("%#v", track))
 	}
+}
+
+func (r *Repository) FindLastTrack() (*model.Track, error) {
+	rows := r.db.QueryRow(`
+		SELECT id, event_id ,artist, name, play_at, duration, cover, path FROM tracks WHERE event_id = ? ORDER BY id DESC LIMIT 1
+	`, r.event.ID)
+
+	var track model.Track
+
+	var artist sql.NullString
+	var duration sql.Null[time.Duration]
+	var cover sql.NullString
+	var path sql.NullString
+
+	err := rows.Scan(
+		&track.ID,
+		&track.EventID,
+		&artist,
+		&track.Name,
+		&track.PlayAt,
+		&duration,
+		&cover,
+		&path,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	if artist.Valid {
+		track.Artist = &artist.String
+	}
+
+	if duration.Valid {
+		track.Duration = &duration.V
+	}
+
+	if cover.Valid {
+		track.Cover = &cover.String
+	}
+
+	if path.Valid {
+		track.Path = &artist.String
+	}
+
+	return &track, nil
 }

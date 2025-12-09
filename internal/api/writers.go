@@ -24,11 +24,20 @@ func (p *SsePacket) Format() string {
 	return packet
 }
 
-type SseWriter struct {
+type Sse struct {
 	http.ResponseWriter
 }
 
-func (w *SseWriter) WritePacket(p *SsePacket) error {
+func (w *Sse) SendEvent(event, data string) error {
+	packet := &SsePacket{
+		Event: event,
+		Data:  data,
+	}
+	return w.sendAndFlushPacket(packet)
+}
+
+// sendAndFlushPacket Écrit et envoie le packet SSE
+func (w *Sse) sendAndFlushPacket(p *SsePacket) error {
 	_, err := w.Write([]byte(p.Format()))
 	if f, ok := w.ResponseWriter.(http.Flusher); ok {
 		f.Flush()
@@ -36,6 +45,6 @@ func (w *SseWriter) WritePacket(p *SsePacket) error {
 	return err
 }
 
-func (w *SseWriter) Ping() (int, error) {
+func (w *Sse) Ping() (int, error) {
 	return w.ResponseWriter.Write([]byte(": ping\n\n"))
 }

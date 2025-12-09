@@ -1,6 +1,7 @@
 package api
 
 import (
+	"djtracker/internal/model"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -26,7 +27,13 @@ func (s *Server) ListenForTracksSSE() http.HandlerFunc {
 		tracksChannel, unsubscribe := s.service.SubscribeForTracks()
 		defer unsubscribe()
 
-		sseW := &SseWriter{w}
+		sseW := &Sse{w}
+		if current := s.service.GetCurrentTrack(); current != nil {
+			if err := sseW.SendEvent("track", parseTrack(current)); err != nil {
+				return
+			}
+		}
+
 		ping := time.NewTicker(1 * time.Second)
 		for {
 			select {
@@ -39,22 +46,18 @@ func (s *Server) ListenForTracksSSE() http.HandlerFunc {
 				}
 				flusher.Flush()
 			case track := <-tracksChannel:
-				trackJson, err := json.Marshal(track)
-				if err != nil {
-					s.log.Error("Error while converting struct to JSON", err)
-					continue
-				}
-
-				packet := &SsePacket{
-					Event: "track",
-					Data:  string(trackJson),
-				}
-				if err := sseW.WritePacket(packet); err != nil {
-					w.WriteHeader(http.StatusInternalServerError)
+				if err := sseW.SendEvent("track", parseTrack(track)); err != nil {
 					break
 				}
-				flusher.Flush()
 			}
 		}
 	}
+}
+
+func parseTrack(data *model.TrackDTO) string {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return ""
+	}
+	return string(jsonData)
 }

@@ -4,30 +4,32 @@ import (
 	"time"
 )
 
-type TrackModel struct {
-	Artist   *string
-	Name     string
-	PlayAt   time.Time
-	Path     *string
-	Duration *time.Duration
-	Cover    *string
-}
-
 type Track struct {
-	ID      int64     `db:"id"`
-	EventID int64     `db:"event_id"`
-	Artist  *string   `db:"artist"`
-	Name    string    `db:"name"`
-	PlayAt  time.Time `db:"play_at"`
-	Path    *string   `db:"path"`
+	ID       int64          `db:"id"`
+	EventID  int64          `db:"event_id"`
+	Artist   *string        `db:"artist"`
+	Name     string         `db:"name"`
+	PlayAt   time.Time      `db:"play_at"`
+	Path     *string        `db:"path"`
+	Duration *time.Duration `db:"duration"`
+	Cover    *string        `db:"cover"`
 }
 
-func (t *TrackModel) ToEntity() *Track {
-	return &Track{
-		Artist: t.Artist,
-		Name:   t.Name,
-		PlayAt: t.PlayAt,
-		Path:   t.Path,
+func (t *Track) IsFinished(now time.Time) bool {
+	if t.Duration == nil {
+		return true
+	}
+	end := t.PlayAt.Add(*t.Duration)
+	return end.Before(now)
+}
+
+func (t *Track) ToDTO() *TrackDTO {
+	return &TrackDTO{
+		Artist:   t.Artist,
+		Name:     t.Name,
+		PlayAt:   t.PlayAt.Format(time.RFC3339),
+		Duration: t.Duration,
+		Cover:    t.Cover,
 	}
 }
 
@@ -37,14 +39,4 @@ type TrackDTO struct {
 	PlayAt   string         `json:"play_at"`
 	Duration *time.Duration `json:"duration,omitempty"`
 	Cover    *string        `json:"cover,omitempty"`
-}
-
-func (t *TrackModel) ToDTO() *TrackDTO {
-	return &TrackDTO{
-		Artist:   t.Artist,
-		Name:     t.Name,
-		PlayAt:   t.PlayAt.Format(time.RFC3339),
-		Duration: t.Duration,
-		Cover:    t.Cover,
-	}
 }

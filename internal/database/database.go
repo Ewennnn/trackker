@@ -57,6 +57,8 @@ func createTracksTable(db *sql.DB) error {
 			artist VARCHAR(255),
 			name VARCHAR(255) NOT NULL,
 			play_at DATETIME NOT NULL,
+			duration INTEGER,
+			cover TEXT,
 			path TEXT,
 			
 			FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE 
