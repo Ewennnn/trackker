@@ -37,7 +37,7 @@ func (f *FileTrackData) MapExtType() int {
 
 // FindFile cherche le fichier name dans le dossier root
 func FindFile(root, name string) (*FileTrackData, error) {
-	var found FileTrackData
+	var found *FileTrackData
 	err := filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -51,7 +51,7 @@ func FindFile(root, name string) (*FileTrackData, error) {
 		trimName := strings.TrimSuffix(info.Name(), ext)
 
 		if !info.IsDir() && strings.HasSuffix(strings.ToLower(trimName), strings.ToLower(name)) {
-			found = FileTrackData{
+			found = &FileTrackData{
 				Path: path,
 				Name: trimName,
 				Ext:  ext,
@@ -66,11 +66,11 @@ func FindFile(root, name string) (*FileTrackData, error) {
 		return nil, err
 	}
 
-	if found.Name == "" {
+	if found == nil || found.Name == "" {
 		return nil, fmt.Errorf("file %s not found", name)
 	}
 
-	return &found, nil
+	return found, nil
 }
 
 func (s *Service) findTrackDuration(file *os.File, extType int) (time.Duration, error) {
