@@ -1,8 +1,9 @@
 package service
 
 import (
-	"djtracker/internal/utils"
+	"encoding/base64"
 	"fmt"
+	"github.com/dhowden/tag"
 	"github.com/hcl/audioduration"
 	"io/fs"
 	"os"
@@ -11,7 +12,7 @@ import (
 	"time"
 )
 
-type FileTrack struct {
+type FileTrackData struct {
 	Path string
 	Name string
 	Ext  string
@@ -19,7 +20,7 @@ type FileTrack struct {
 
 // MapExtType mappe l'extension du fichier vers un entier
 // représentant la valeur attendu par la librairie audioduration.Duration()
-func (f *FileTrack) MapExtType() int {
+func (f *FileTrackData) MapExtType() int {
 	if f == nil {
 		return -1
 	}
@@ -35,8 +36,8 @@ func (f *FileTrack) MapExtType() int {
 }
 
 // FindFile cherche le fichier name dans le dossier root
-func FindFile(root, name string) (*FileTrack, error) {
-	var found FileTrack
+func FindFile(root, name string) (*FileTrackData, error) {
+	var found FileTrackData
 	err := filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -50,7 +51,7 @@ func FindFile(root, name string) (*FileTrack, error) {
 		trimName := strings.TrimSuffix(info.Name(), ext)
 
 		if !info.IsDir() && strings.HasSuffix(strings.ToLower(trimName), strings.ToLower(name)) {
-			found = FileTrack{
+			found = FileTrackData{
 				Path: path,
 				Name: trimName,
 				Ext:  ext,
@@ -72,17 +73,26 @@ func FindFile(root, name string) (*FileTrack, error) {
 	return &found, nil
 }
 
-func (s *Service) findTrackDuration(fileTrack *FileTrack) (time.Duration, error) {
-	file, err := os.Open(fileTrack.Path)
-	if err != nil {
-		return -1, err
-	}
-	defer utils.SafeDeferClose(file, s.log)
-
-	duration, err := audioduration.Duration(file, fileTrack.MapExtType())
+func (s *Service) findTrackDuration(file *os.File, extType int) (time.Duration, error) {
+	duration, err := audioduration.Duration(file, extType)
 	if err != nil {
 		return -1, err
 	}
 
 	return time.Duration(duration * float64(time.Second)), nil
+}
+
+func (s *Service) findTrackCover(file *os.File) (string, error) {
+	metadata, err := tag.ReadFrom(file)
+	if err != nil {
+		return "", err
+	}
+
+	if picture := metadata.Picture(); picture != nil {
+		mime := picture.MIMEType
+		data := base64.StdEncoding.EncodeToString(picture.Data)
+		return fmt.Sprintf("data:%s;base64,%s", mime, data), nil
+	}
+
+	return "", fmt.Errorf("no picture found for this track")
 }

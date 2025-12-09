@@ -31,7 +31,7 @@ func Exists(path string) bool {
 	return false
 }
 
-func SafeDeferClose(file io.Closer, log *slog.Logger) {
+func SafeClose(file io.Closer, log *slog.Logger) {
 	err := file.Close()
 	if err != nil {
 		log.Error("Failed to close file", err)

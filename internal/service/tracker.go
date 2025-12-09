@@ -71,32 +71,52 @@ func (s *Service) analyseTracks() {
 			continue
 		}
 
-		track := &model.Track{
+		track := &model.TrackModel{
 			Artist: utils.SafeTrim(parsedTrack.Artist),
 			Name:   strings.TrimSpace(parsedTrack.Name),
 			PlayAt: time.Now(),
 		}
 
-		fileTrack, err := s.findTrackFile(track.Name)
+		// Récupération des données du fichier de la track
+		fileTrackData, err := s.findTrackFile(track.Name)
 		if err != nil {
 			s.log.Error("Track file not found", "track", track.Name)
-		} else {
-			s.log.Debug("Track file found", "track", fileTrack)
+			s.repo.AddTrackToHistory(track.ToEntity())
+			s.trackBroadcaster.Broadcast(track.ToDTO())
+			return
+		}
+		s.log.Debug("Track file found", "track", fileTrackData)
 
-			trackDuration, err := s.findTrackDuration(fileTrack)
-			if err != nil {
-				s.log.Error("Failed to retrieve time data", "path", fileTrack.Path)
-			} else {
-				track.Duration = &trackDuration
-			}
+		// Ouverture du fichier de la track
+		trackFile, err := os.Open(fileTrackData.Path)
+		if err != nil {
+			s.log.Error("Failed to open track file", "path", fileTrackData.Path)
+			s.repo.AddTrackToHistory(track.ToEntity())
+			s.trackBroadcaster.Broadcast(track.ToDTO())
+			return
 		}
 
-		s.repo.AddTrackToHistory(track)
+		// Récupération de la durée de la track
+		if duration, err := s.findTrackDuration(trackFile, fileTrackData.MapExtType()); err == nil {
+			track.Duration = &duration
+		} else {
+			s.log.Error("Failed to retrieve track duration", "track", fileTrackData.Name, "path", fileTrackData.Path)
+		}
+
+		// Récupération de la cover de la track
+		if cover, err := s.findTrackCover(trackFile); err == nil {
+			track.Cover = &cover
+		} else {
+			s.log.Error("Failed to retrieve track cover", "track", fileTrackData.Name, "path", fileTrackData.Path)
+		}
+
+		utils.SafeClose(trackFile, s.log)
+		s.repo.AddTrackToHistory(track.ToEntity())
 		s.trackBroadcaster.Broadcast(track.ToDTO())
 	}
 }
 
-func (s *Service) findTrackFile(track string) (*FileTrack, error) {
+func (s *Service) findTrackFile(track string) (*FileTrackData, error) {
 	for _, sourceFolder := range s.config.Tracker.Source.Paths {
 		if file, err := FindFile(sourceFolder, track); err == nil {
 			return file, nil
@@ -109,7 +129,7 @@ func (s *Service) findTrackFile(track string) (*FileTrack, error) {
 // Transfer les informations brutes vers le channel liveTracklist
 func (s *Service) readTracks(file *os.File) {
 	reader := bufio.NewReader(file)
-	defer utils.SafeDeferClose(file, s.log)
+	defer utils.SafeClose(file, s.log)
 	for {
 		data, err := reader.ReadString('\n')
 		if err != nil {

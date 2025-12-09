@@ -76,8 +76,8 @@ func (r *Repository) createNewEvent(date time.Time) error {
 
 func (r *Repository) AddTrackToHistory(track *model.Track) {
 	_, err := r.db.Exec(`
-		INSERT INTO tracks (event_id, artist, name, play_at, duration) VALUES (?, ?, ?, ?, ?)
-	`, r.event.ID, track.Artist, track.Name, track.PlayAt, track.Duration)
+		INSERT INTO tracks (event_id, artist, name, play_at) VALUES (?, ?, ?, ?)
+	`, r.event.ID, track.Artist, track.Name, track.PlayAt)
 
 	if err != nil {
 		r.log.Warn("Failed to insert track into history", "event", r.event.ID, "track", fmt.Sprintf("%#v", track))
