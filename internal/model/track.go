@@ -8,6 +8,7 @@ type TrackModel struct {
 	Artist   *string
 	Name     string
 	PlayAt   time.Time
+	Path     *string
 	Duration *time.Duration
 	Cover    *string
 }
@@ -18,6 +19,7 @@ type Track struct {
 	Artist  *string   `db:"artist"`
 	Name    string    `db:"name"`
 	PlayAt  time.Time `db:"play_at"`
+	Path    *string   `db:"path"`
 }
 
 func (t *TrackModel) ToEntity() *Track {
@@ -25,6 +27,7 @@ func (t *TrackModel) ToEntity() *Track {
 		Artist: t.Artist,
 		Name:   t.Name,
 		PlayAt: t.PlayAt,
+		Path:   t.Path,
 	}
 }
 

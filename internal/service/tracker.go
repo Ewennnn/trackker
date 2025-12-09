@@ -86,6 +86,7 @@ func (s *Service) analyseTracks() {
 			return
 		}
 		s.log.Debug("Track file found", "track", fileTrackData)
+		track.Path = &fileTrackData.Path
 
 		// Ouverture du fichier de la track
 		trackFile, err := os.Open(fileTrackData.Path)
