@@ -1,3 +1,28 @@
-h1 {
-    color: red;
+body {
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    height: 100vh;
+}
+#app, #app > div {
+    width: inherit;
+    height: inherit;
+}
+.track-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 30px;
+    height: inherit;
+}
+.cover {
+    width: 40%;
+}
+.track-title {
+    font-size: 42px;
+    color: black;
+    text-align: center;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    user-select: none;
 }
