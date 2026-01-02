@@ -9,6 +9,14 @@ import (
 	"strings"
 )
 
+func SafePointer[T any](p *T) T {
+	var pp T
+	if p != nil {
+		return *p
+	}
+	return pp
+}
+
 func SafeTrim(data *string) *string {
 	if data == nil {
 		return nil

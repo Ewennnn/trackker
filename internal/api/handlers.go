@@ -1,15 +1,47 @@
 package api
 
 import (
-	"djtracker/internal/model"
-	"encoding/json"
+	"encoding/base64"
+	"fmt"
 	"net/http"
+	"strings"
 	"time"
 )
 
 func (s *Server) LoadIndex() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "static/index.html")
+	}
+}
+
+func (s *Server) GetCover() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		current := s.service.GetCurrentTrack()
+		if current == nil || current.Cover == nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		// Extraire le mime type depuis le data URL
+		parts := strings.SplitN(*current.Cover, ",", 2)
+		if len(parts) != 2 {
+			http.Error(w, "Invalid cover data", http.StatusInternalServerError)
+			return
+		}
+		meta, b64data := parts[0], parts[1]
+
+		mime := strings.TrimPrefix(meta, "data:")
+		mime = strings.TrimSuffix(mime, ";base64")
+
+		imgBytes, err := base64.StdEncoding.DecodeString(b64data)
+		if err != nil {
+			http.Error(w, "Failed to decode image", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", mime)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(imgBytes)
 	}
 }
 
@@ -29,7 +61,12 @@ func (s *Server) ListenForTracksSSE() http.HandlerFunc {
 
 		sseW := &Sse{w}
 		if current := s.service.GetCurrentTrack(); current != nil {
-			if err := sseW.SendEvent("track", parseTrack(current)); err != nil {
+			tmpl, err := s.formatter.Format(current)
+			if err != nil {
+				fmt.Println(err)
+				tmpl = "<h1>Error</h1>"
+			}
+			if err := sseW.SendEvent("track", tmpl); err != nil {
 				return
 			}
 		}
@@ -46,18 +83,15 @@ func (s *Server) ListenForTracksSSE() http.HandlerFunc {
 				}
 				flusher.Flush()
 			case track := <-tracksChannel:
-				if err := sseW.SendEvent("track", parseTrack(track)); err != nil {
+				tmpl, err := s.formatter.Format(track)
+				if err != nil {
+					fmt.Println(err)
+					tmpl = "<h1>Error</h1>"
+				}
+				if err := sseW.SendEvent("track", tmpl); err != nil {
 					break
 				}
 			}
 		}
 	}
-}
-
-func parseTrack(data *model.TrackDTO) string {
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return ""
-	}
-	return string(jsonData)
 }

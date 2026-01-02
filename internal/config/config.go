@@ -11,6 +11,7 @@ type Config struct {
 	Server struct {
 		BindAddress string `yaml:"bind_address"`
 		Port        string
+		Format      string
 	}
 	Database struct {
 		Path string

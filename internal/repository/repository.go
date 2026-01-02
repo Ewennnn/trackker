@@ -75,15 +75,22 @@ func (r *Repository) createNewEvent(date time.Time) error {
 }
 
 func (r *Repository) AddTrackToHistory(track *model.Track) {
-	_, err := r.db.Exec(`
+	res, err := r.db.Exec(`
 		INSERT INTO tracks (event_id, artist, name, play_at, duration, cover, path) VALUES (?, ?, ?, ?, ?, ?, ?)
 	`, r.event.ID, track.Artist, track.Name, track.PlayAt, track.Duration, track.Cover, track.Path)
 
 	if err != nil {
 		r.log.Warn("Failed to insert track into history", "event", r.event.ID, "track", fmt.Sprintf("%#v", track))
-	} else {
-		r.log.Info("Track successfully saved", "event", r.event.ID, "track", fmt.Sprintf("%#v", track))
+		return
 	}
+	r.log.Info("Track successfully saved", "event", r.event.ID, "track", fmt.Sprintf("%#v", track))
+
+	id, err := res.LastInsertId()
+	if err != nil {
+		r.log.Warn("Failed to retrieve generated ID for track", "event", r.event.ID, "track", fmt.Sprintf("%#v", track))
+		return
+	}
+	track.ID = id
 }
 
 func (r *Repository) FindLastTrack() (*model.Track, error) {

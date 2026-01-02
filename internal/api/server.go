@@ -1,6 +1,7 @@
 package api
 
 import (
+	formatter2 "djtracker/internal/api/formatter"
 	"djtracker/internal/config"
 	"djtracker/internal/service"
 	"fmt"
@@ -9,16 +10,18 @@ import (
 )
 
 type Server struct {
-	config  *config.Config
-	log     *slog.Logger
-	service *service.Service
+	config    *config.Config
+	log       *slog.Logger
+	service   *service.Service
+	formatter formatter2.Formatter
 }
 
-func NewServer(config *config.Config, log *slog.Logger, service *service.Service) *Server {
+func NewServer(config *config.Config, log *slog.Logger, service *service.Service, formatter formatter2.Formatter) *Server {
 	return &Server{
-		config:  config,
-		log:     log,
-		service: service,
+		config:    config,
+		log:       log,
+		service:   service,
+		formatter: formatter,
 	}
 }
 
@@ -33,6 +36,7 @@ func (s *Server) Start() error {
 	mux.Handle("GET /static/", http.StripPrefix("/static/", fs))
 
 	mux.Handle("GET /", s.LoadIndex())
+	mux.Handle("GET /cover/", s.GetCover())
 	mux.Handle("GET /events", s.ListenForTracksSSE())
 
 	server := &http.Server{

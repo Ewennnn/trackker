@@ -1,6 +1,7 @@
 server:
   bind_address: 127.0.0.1
   port: 9000
+  format: html
 
 database:
   path: ./data/data.db

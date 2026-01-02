@@ -22,7 +22,7 @@ type Service struct {
 	reader        *bufio.Reader
 	liveTracklist chan string
 
-	trackBroadcaster *Broadcaster[*model.TrackDTO]
+	trackBroadcaster *Broadcaster[*model.Track]
 }
 
 func New(log *slog.Logger, config *config.Config, repo *repository.Repository) *Service {
@@ -32,17 +32,17 @@ func New(log *slog.Logger, config *config.Config, repo *repository.Repository) *
 		repo:          repo,
 		liveTracklist: make(chan string, 1),
 
-		trackBroadcaster: NewBroadcaster[*model.TrackDTO](log),
+		trackBroadcaster: NewBroadcaster[*model.Track](log),
 	}
 }
 
 // SubscribeForTracks Créer un nouveau channel abonné à la réception des tracks
-func (s *Service) SubscribeForTracks() (chan *model.TrackDTO, func()) {
+func (s *Service) SubscribeForTracks() (chan *model.Track, func()) {
 	return s.trackBroadcaster.Subscribe(1)
 }
 
 // GetCurrentTrack Récupère la track actuelle et l'envoie dans le channel
-func (s *Service) GetCurrentTrack() *model.TrackDTO {
+func (s *Service) GetCurrentTrack() *model.Track {
 	track, err := s.repo.FindLastTrack()
 	if err != nil {
 		s.log.Error("Failed to retrieve current track", err)
@@ -59,7 +59,7 @@ func (s *Service) GetCurrentTrack() *model.TrackDTO {
 		return nil
 	}
 
-	return track.ToDTO()
+	return track
 }
 
 func (s *Service) StartTracking() error {
@@ -103,7 +103,7 @@ func (s *Service) analyseTracks() {
 		if err != nil {
 			s.log.Error("Track file not found", "track", track.Name)
 			s.repo.AddTrackToHistory(track)
-			s.trackBroadcaster.Broadcast(track.ToDTO())
+			s.trackBroadcaster.Broadcast(track)
 			continue
 		}
 		s.log.Debug("Track file found", "track", fileTrackData)
@@ -114,7 +114,7 @@ func (s *Service) analyseTracks() {
 		if err != nil {
 			s.log.Error("Failed to open track file", "path", fileTrackData.Path)
 			s.repo.AddTrackToHistory(track)
-			s.trackBroadcaster.Broadcast(track.ToDTO())
+			s.trackBroadcaster.Broadcast(track)
 			continue
 		}
 
@@ -134,7 +134,7 @@ func (s *Service) analyseTracks() {
 
 		utils.SafeClose(trackFile, s.log)
 		s.repo.AddTrackToHistory(track)
-		s.trackBroadcaster.Broadcast(track.ToDTO())
+		s.trackBroadcaster.Broadcast(track)
 	}
 }
 

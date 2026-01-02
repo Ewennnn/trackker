@@ -1,0 +1,11 @@
+<div class="track-container">
+    {{if .Cover}}
+    <img src="/cover/{{.ID}}" alt="cover" class="cover"/>
+    {{end}}
+
+    {{if ne .Artist ""}}
+    <span class="track-item">{{.Artist}} - {{.Title}}</span>
+    {{else}}
+    <span class="track-item">{{.Title}}</span>
+    {{end}}
+</div>

@@ -2,6 +2,7 @@ package main
 
 import (
 	"djtracker/internal/api"
+	"djtracker/internal/api/formatter"
 	"djtracker/internal/config"
 	"djtracker/internal/database"
 	"djtracker/internal/repository"
@@ -25,6 +26,11 @@ func main() {
 		log.Fatal(err)
 	}
 
+	f, err := formatter.NewFormatter(conf, logger)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	db, err := database.Init(conf)
 	if err != nil {
 		log.Fatal(err)
@@ -43,7 +49,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	server := api.NewServer(conf, logger, s)
+	server := api.NewServer(conf, logger, s, f)
 	if err := server.Start(); err != nil {
 		log.Fatal(err)
 	}
