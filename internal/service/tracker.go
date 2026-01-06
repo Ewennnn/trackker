@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-type Service struct {
+type Tracker struct {
 	log           *slog.Logger
 	config        *config.Config
 	repo          *repository.Repository
@@ -25,8 +25,8 @@ type Service struct {
 	trackBroadcaster *Broadcaster[*model.Track]
 }
 
-func New(log *slog.Logger, config *config.Config, repo *repository.Repository) *Service {
-	return &Service{
+func New(log *slog.Logger, config *config.Config, repo *repository.Repository) *Tracker {
+	return &Tracker{
 		log:           log,
 		config:        config,
 		repo:          repo,
@@ -37,33 +37,33 @@ func New(log *slog.Logger, config *config.Config, repo *repository.Repository) *
 }
 
 // SubscribeForTracks Créer un nouveau channel abonné à la réception des tracks
-func (s *Service) SubscribeForTracks() (chan *model.Track, func()) {
-	return s.trackBroadcaster.Subscribe(1)
+func (t *Tracker) SubscribeForTracks() (chan *model.Track, func()) {
+	return t.trackBroadcaster.Subscribe(1)
 }
 
 // GetCurrentTrack Récupère la track actuelle et l'envoie dans le channel
-func (s *Service) GetCurrentTrack() *model.Track {
-	track, err := s.repo.FindLastTrack()
+func (t *Tracker) GetCurrentTrack() *model.Track {
+	track, err := t.repo.FindLastTrack()
 	if err != nil {
-		s.log.Error("Failed to retrieve current track", err)
+		t.log.Error("Failed to retrieve current track", err)
 		return nil
 	}
 
 	if track == nil {
-		s.log.Debug("No current track was found")
+		t.log.Debug("No current track was found")
 		return nil
 	}
 
 	if track.IsFinished(time.Now()) {
-		s.log.Debug("Last track finished")
+		t.log.Debug("Last track finished")
 		return nil
 	}
 
 	return track
 }
 
-func (s *Service) StartTracking() error {
-	tracklistFile, err := os.Open(s.config.Tracker.History.Path)
+func (t *Tracker) StartTracking() error {
+	tracklistFile, err := os.Open(t.config.Tracker.History.Path)
 	if err != nil {
 		return err
 	}
@@ -77,18 +77,18 @@ func (s *Service) StartTracking() error {
 		return err
 	}
 
-	go s.readTracks(tracklistFile)
-	go s.analyseTracks()
+	go t.readTracks(tracklistFile)
+	go t.analyseTracks()
 	return nil
 }
 
 // analyseTracks Lit les tracks brutes reçues de liveTracklist
 // Transfer les informations de la TrackDTO vers le channel Tracks
-func (s *Service) analyseTracks() {
-	for trackText := range s.liveTracklist {
+func (t *Tracker) analyseTracks() {
+	for trackText := range t.liveTracklist {
 		parsedTrack, err := ParseLine(trackText)
 		if err != nil {
-			s.log.Error("Unable to parse track line", "track_line", trackText)
+			t.log.Error("Unable to parse track line", "track_line", trackText)
 			continue
 		}
 
@@ -99,47 +99,47 @@ func (s *Service) analyseTracks() {
 		}
 
 		// Récupération des données du fichier de la track
-		fileTrackData, err := s.findTrackFile(track.Name)
+		fileTrackData, err := t.findTrackFile(track.Name)
 		if err != nil {
-			s.log.Error("Track file not found", "track", track.Name)
-			s.repo.AddTrackToHistory(track)
-			s.trackBroadcaster.Broadcast(track)
+			t.log.Error("Track file not found", "track", track.Name)
+			t.repo.AddTrackToHistory(track)
+			t.trackBroadcaster.Broadcast(track)
 			continue
 		}
-		s.log.Debug("Track file found", "track", fileTrackData)
+		t.log.Debug("Track file found", "track", fileTrackData)
 		track.Path = &fileTrackData.Path
 
 		// Ouverture du fichier de la track
 		trackFile, err := os.Open(fileTrackData.Path)
 		if err != nil {
-			s.log.Error("Failed to open track file", "path", fileTrackData.Path)
-			s.repo.AddTrackToHistory(track)
-			s.trackBroadcaster.Broadcast(track)
+			t.log.Error("Failed to open track file", "path", fileTrackData.Path)
+			t.repo.AddTrackToHistory(track)
+			t.trackBroadcaster.Broadcast(track)
 			continue
 		}
 
 		// Récupération de la durée de la track
-		if duration, err := s.findTrackDuration(trackFile, fileTrackData.MapExtType()); err == nil {
+		if duration, err := t.findTrackDuration(trackFile, fileTrackData.MapExtType()); err == nil {
 			track.Duration = &duration
 		} else {
-			s.log.Error("Failed to retrieve track duration", "track", fileTrackData.Name, "path", fileTrackData.Path)
+			t.log.Error("Failed to retrieve track duration", "track", fileTrackData.Name, "path", fileTrackData.Path)
 		}
 
 		// Récupération de la cover de la track
-		if cover, err := s.findTrackCover(trackFile); err == nil {
+		if cover, err := t.findTrackCover(trackFile); err == nil {
 			track.Cover = &cover
 		} else {
-			s.log.Error("Failed to retrieve track cover", "track", fileTrackData.Name, "path", fileTrackData.Path)
+			t.log.Error("Failed to retrieve track cover", "track", fileTrackData.Name, "path", fileTrackData.Path)
 		}
 
 		utils.SafeClose(trackFile)
-		s.repo.AddTrackToHistory(track)
-		s.trackBroadcaster.Broadcast(track)
+		t.repo.AddTrackToHistory(track)
+		t.trackBroadcaster.Broadcast(track)
 	}
 }
 
-func (s *Service) findTrackFile(track string) (*FileTrackData, error) {
-	for _, sourceFolder := range s.config.Tracker.Source.Paths {
+func (t *Tracker) findTrackFile(track string) (*FileTrackData, error) {
+	for _, sourceFolder := range t.config.Tracker.Source.Paths {
 		if file, err := FindFile(sourceFolder, track); err == nil {
 			return file, nil
 		}
@@ -149,7 +149,7 @@ func (s *Service) findTrackFile(track string) (*FileTrackData, error) {
 
 // readTracks Lit le fichier tracklist de VirtualDJ
 // Transfer les informations brutes vers le channel liveTracklist
-func (s *Service) readTracks(file *os.File) {
+func (t *Tracker) readTracks(file *os.File) {
 	reader := bufio.NewReader(file)
 	defer utils.SafeClose(file)
 	for {
@@ -158,10 +158,10 @@ func (s *Service) readTracks(file *os.File) {
 			if errors.Is(err, io.EOF) {
 				continue
 			}
-			s.log.Error("Error while reading file", err)
+			t.log.Error("Error while reading file", err)
 		}
 		data = strings.TrimRight(data, "\r\n")
 
-		s.liveTracklist <- data
+		t.liveTracklist <- data
 	}
 }

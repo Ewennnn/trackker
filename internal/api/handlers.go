@@ -16,7 +16,7 @@ func (s *Server) LoadIndex() http.HandlerFunc {
 
 func (s *Server) GetCover() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		current := s.service.GetCurrentTrack()
+		current := s.tracker.GetCurrentTrack()
 		if current == nil || current.Cover == nil {
 			http.NotFound(w, r)
 			return
@@ -56,11 +56,11 @@ func (s *Server) ListenForTracksSSE() http.HandlerFunc {
 			http.Error(w, "Streaming not supported", http.StatusInternalServerError)
 		}
 
-		tracksChannel, unsubscribe := s.service.SubscribeForTracks()
+		tracksChannel, unsubscribe := s.tracker.SubscribeForTracks()
 		defer unsubscribe()
 
 		sseW := &Sse{w}
-		if current := s.service.GetCurrentTrack(); current != nil {
+		if current := s.tracker.GetCurrentTrack(); current != nil {
 			tmpl, err := s.formatter.Format(current)
 			if err != nil {
 				fmt.Println(err)

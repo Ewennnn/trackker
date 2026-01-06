@@ -12,15 +12,15 @@ import (
 type Server struct {
 	config    *config.Config
 	log       *slog.Logger
-	service   *service.Service
+	tracker   *service.Tracker
 	formatter formatter2.Formatter
 }
 
-func NewServer(config *config.Config, log *slog.Logger, service *service.Service, formatter formatter2.Formatter) *Server {
+func NewServer(config *config.Config, log *slog.Logger, service *service.Tracker, formatter formatter2.Formatter) *Server {
 	return &Server{
 		config:    config,
 		log:       log,
-		service:   service,
+		tracker:   service,
 		formatter: formatter,
 	}
 }

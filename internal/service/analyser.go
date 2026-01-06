@@ -73,7 +73,7 @@ func FindFile(root, name string) (*FileTrackData, error) {
 	return found, nil
 }
 
-func (s *Service) findTrackDuration(file *os.File, extType int) (time.Duration, error) {
+func (t *Tracker) findTrackDuration(file *os.File, extType int) (time.Duration, error) {
 	duration, err := audioduration.Duration(file, extType)
 	if err != nil {
 		return -1, err
@@ -82,7 +82,7 @@ func (s *Service) findTrackDuration(file *os.File, extType int) (time.Duration, 
 	return time.Duration(duration * float64(time.Second)), nil
 }
 
-func (s *Service) findTrackCover(file *os.File) (string, error) {
+func (t *Tracker) findTrackCover(file *os.File) (string, error) {
 	metadata, err := tag.ReadFrom(file)
 	if err != nil {
 		return "", err
