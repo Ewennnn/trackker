@@ -46,7 +46,7 @@ func (r *Repository) PrepareEvent() error {
 	today := now.Truncate(24 * time.Hour)
 
 	isNextDay := today.After(lastDate)
-	isAfterNine := now.Hour() > 9
+	isAfterNine := now.Hour() >= 9
 
 	if isNextDay && isAfterNine {
 		return r.createNewEvent(now)
