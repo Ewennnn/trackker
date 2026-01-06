@@ -132,7 +132,7 @@ func (s *Service) analyseTracks() {
 			s.log.Error("Failed to retrieve track cover", "track", fileTrackData.Name, "path", fileTrackData.Path)
 		}
 
-		utils.SafeClose(trackFile, s.log)
+		utils.SafeClose(trackFile)
 		s.repo.AddTrackToHistory(track)
 		s.trackBroadcaster.Broadcast(track)
 	}
@@ -151,7 +151,7 @@ func (s *Service) findTrackFile(track string) (*FileTrackData, error) {
 // Transfer les informations brutes vers le channel liveTracklist
 func (s *Service) readTracks(file *os.File) {
 	reader := bufio.NewReader(file)
-	defer utils.SafeClose(file, s.log)
+	defer utils.SafeClose(file)
 	for {
 		data, err := reader.ReadString('\n')
 		if err != nil {

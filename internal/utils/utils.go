@@ -4,7 +4,7 @@ import (
 	"errors"
 	"io"
 	"io/fs"
-	"log/slog"
+	"log"
 	"os"
 	"strings"
 )
@@ -39,9 +39,9 @@ func Exists(path string) bool {
 	return false
 }
 
-func SafeClose(file io.Closer, log *slog.Logger) {
+func SafeClose(file io.Closer) {
 	err := file.Close()
 	if err != nil {
-		log.Error("Failed to close file", err)
+		log.Panicln("Failed to close file", err)
 	}
 }
