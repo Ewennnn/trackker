@@ -101,9 +101,7 @@ func (r *Repository) FindLastTrack() (*model.Track, error) {
 	var track model.Track
 
 	var artist sql.NullString
-	var duration sql.Null[time.Duration]
 	var cover sql.NullString
-	var path sql.NullString
 
 	err := rows.Scan(
 		&track.ID,
@@ -111,9 +109,9 @@ func (r *Repository) FindLastTrack() (*model.Track, error) {
 		&artist,
 		&track.Name,
 		&track.PlayAt,
-		&duration,
+		&track.Duration,
 		&cover,
-		&path,
+		&track.Path,
 	)
 
 	if err != nil {
@@ -127,16 +125,8 @@ func (r *Repository) FindLastTrack() (*model.Track, error) {
 		track.Artist = &artist.String
 	}
 
-	if duration.Valid {
-		track.Duration = &duration.V
-	}
-
 	if cover.Valid {
 		track.Cover = &cover.String
-	}
-
-	if path.Valid {
-		track.Path = &artist.String
 	}
 
 	return &track, nil

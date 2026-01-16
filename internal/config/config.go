@@ -3,8 +3,9 @@ package config
 import (
 	"djtracker/internal/utils"
 	"fmt"
-	"github.com/goccy/go-yaml"
 	"os"
+
+	"github.com/goccy/go-yaml"
 )
 
 type Config struct {
@@ -18,7 +19,8 @@ type Config struct {
 	}
 	Tracker struct {
 		History struct {
-			Path string
+			Source string
+			Path   string
 		}
 		Source struct {
 			Paths []string
@@ -41,10 +43,6 @@ func New() (*Config, error) {
 }
 
 func (c *Config) Check() error {
-	if !utils.Exists(c.Tracker.History.Path) {
-		return fmt.Errorf("history file not found: %s", c.Tracker.History.Path)
-	}
-
 	for _, folder := range c.Tracker.Source.Paths {
 		if !utils.Exists(folder) {
 			return fmt.Errorf("source folder path not found: %s", folder)

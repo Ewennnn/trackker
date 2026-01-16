@@ -1,7 +1,7 @@
 package api
 
 import (
-	formatter2 "djtracker/internal/api/formatter"
+	"djtracker/internal/api/formatter"
 	"djtracker/internal/config"
 	"djtracker/internal/service"
 	"fmt"
@@ -13,10 +13,10 @@ type Server struct {
 	config    *config.Config
 	log       *slog.Logger
 	tracker   *service.Tracker
-	formatter formatter2.Formatter
+	formatter formatter.Formatter
 }
 
-func NewServer(config *config.Config, log *slog.Logger, service *service.Tracker, formatter formatter2.Formatter) *Server {
+func NewServer(config *config.Config, log *slog.Logger, service *service.Tracker, formatter formatter.Formatter) *Server {
 	return &Server{
 		config:    config,
 		log:       log,

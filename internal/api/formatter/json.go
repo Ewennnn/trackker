@@ -7,12 +7,12 @@ import (
 )
 
 type trackDTO struct {
-	ID       int64          `json:"id"`
-	Artist   *string        `json:"artist,omitempty"`
-	Name     string         `json:"name"`
-	PlayAt   string         `json:"play_at"`
-	Duration *time.Duration `json:"duration,omitempty"`
-	Cover    *string        `json:"cover,omitempty"`
+	ID       int64         `json:"id"`
+	Artist   *string       `json:"artist,omitempty"`
+	Name     string        `json:"name"`
+	PlayAt   string        `json:"play_at"`
+	Duration time.Duration `json:"duration"`
+	Cover    *string       `json:"cover,omitempty"`
 }
 
 func newTrackDTO(t *model.Track) *trackDTO {

@@ -8,7 +8,8 @@ database:
 
 tracker:
   history:
-    path: C:\Users\ewenb\AppData\Local\VirtualDJ\History\tracklist.txt
+    source: virtualdj
+    path: C:\Users\ewenb\AppData\Local\VirtualDJ\History
   source:
     paths:
       - C:\Users\ewenb\Music\Musiques de fond

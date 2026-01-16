@@ -7,6 +7,7 @@ import (
 	"djtracker/internal/database"
 	"djtracker/internal/repository"
 	"djtracker/internal/service"
+	"djtracker/internal/service/parser"
 	"log"
 	"log/slog"
 	"os"
@@ -26,7 +27,15 @@ func main() {
 		log.Fatal(err)
 	}
 
-	f, err := formatter.NewFormatter(conf, logger)
+	tracksParser, err := parser.GetParser(conf, logger)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := tracksParser.CheckState(); err != nil {
+		log.Fatal(err)
+	}
+
+	sseFormatter, err := formatter.NewFormatter(conf, logger)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -44,12 +53,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	s := service.New(logger, conf, repo)
-	if err := s.StartTracking(); err != nil {
-		log.Fatal(err)
-	}
+	trackerService := service.New(logger, conf, repo, tracksParser)
+	trackerService.StartTracking()
 
-	server := api.NewServer(conf, logger, s, f)
+	server := api.NewServer(conf, logger, trackerService, sseFormatter)
 	if err := server.Start(); err != nil {
 		log.Fatal(err)
 	}

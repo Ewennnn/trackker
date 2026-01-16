@@ -1,12 +1,13 @@
 package utils
 
 import (
-	"errors"
+	"encoding/base64"
+	"fmt"
 	"io"
-	"io/fs"
 	"log"
 	"os"
-	"strings"
+
+	"github.com/dhowden/tag"
 )
 
 func SafePointer[T any](p *T) T {
@@ -17,24 +18,17 @@ func SafePointer[T any](p *T) T {
 	return pp
 }
 
-func SafeTrim(data *string) *string {
-	if data == nil {
+func EmptyStringNil(s string) *string {
+	if s == "" {
 		return nil
 	}
-	v := strings.TrimSpace(*data)
-	if v == "" {
-		return nil
-	}
-	return &v
+	return &s
 }
 
 func Exists(path string) bool {
 	_, err := os.Stat(path)
 	if err == nil {
 		return true
-	}
-	if errors.Is(err, fs.ErrNotExist) {
-		return false
 	}
 	return false
 }
@@ -44,4 +38,31 @@ func SafeClose(file io.Closer) {
 	if err != nil {
 		log.Panicln("Failed to close file", err)
 	}
+}
+
+func GetTrackFileMetadata(path string) tag.Metadata {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil
+	}
+	defer SafeClose(file)
+
+	metadata, err := tag.ReadFrom(file)
+	return metadata
+}
+
+func GetTrackCover(path string) *string {
+	metadata := GetTrackFileMetadata(path)
+	if metadata == nil {
+		return nil
+	}
+
+	if p := metadata.Picture(); p != nil {
+		mime := p.MIMEType
+		data := base64.StdEncoding.EncodeToString(p.Data)
+		picture := fmt.Sprintf("data:%s;base64,%s", mime, data)
+		return &picture
+	}
+
+	return nil
 }
