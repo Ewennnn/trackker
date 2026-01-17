@@ -47,7 +47,7 @@ func main() {
 			return err
 		}
 
-		tracker := service.New(logger, conf, repo, tracksParser)
+		tracker := service.NewTracker(logger, conf, repo, tracksParser)
 		tracker.StartTracking()
 
 		server := api.NewServer(conf, logger, tracker, sseFormatter)

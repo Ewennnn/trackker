@@ -21,7 +21,7 @@ type Tracker struct {
 	trackBroadcaster *Broadcaster[*model.Track]
 }
 
-func New(log *slog.Logger, config *config.Config, repo *repository.Repository, parser parser.Parser) *Tracker {
+func NewTracker(log *slog.Logger, config *config.Config, repo *repository.Repository, parser parser.Parser) *Tracker {
 	return &Tracker{
 		log:    log,
 		config: config,
