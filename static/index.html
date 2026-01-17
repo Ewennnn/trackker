@@ -2,16 +2,16 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/static/style.css">
     <link rel="icon" href="/static/icon.png">
-    <title>DJ Tracker</title>
+    <title>Trackker | Live</title>
     <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js" integrity="sha384-/TgkGk7p307TH7EXJDuUlgG3Ce1UVolAOFopFekQkkXihi5u/6OCvVKyz1W+idaz" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/htmx-ext-sse@2.2.4" integrity="sha384-A986SAtodyH8eg8x8irJnYUk7i9inVQqYigD6qZ9evobksGNIXfeFvDwLSHcp31N" crossorigin="anonymous"></script>
 
-    <!-- Détecte lorsqu'une image n'a pas pu être chargée et retire la balise du DOM -->
-    <!-- La gestion de l'affichage de la cover est déléguée au front qui décide d'afficher ou non une image -->
-    <!-- Le back donne juste les infos -->
     <script>
+        // Si l'image échoue, on la retire.
+        // Note: Le CSS ajustera le layout automatiquement grâce au Flexbox.
         document.addEventListener('error', e => {
             const el = e.target
             if (el.tagName === 'IMG' && el.classList.contains('cover')) {
@@ -21,10 +21,10 @@
     </script>
 </head>
 <body>
-    <div id="app">
-        <div hx-ext="sse" sse-connect="/events" sse-swap="track">
-            En attente d'une track...
-        </div>
+<div id="app">
+    <div hx-ext="sse" sse-connect="/events" sse-swap="track" class="track-container">
+        <div class="waiting-text">En attente d'une track...</div>
     </div>
+</div>
 </body>
 </html>

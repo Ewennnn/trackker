@@ -1,9 +1,12 @@
 <div class="track-container">
     <img src="/cover/{{.ID}}" alt="cover" class="cover"/>
 
-    {{if .Artist}}
-    <span class="track-title">{{.Artist}} - {{.Name}}</span>
-    {{else}}
-    <span class="track-title">{{.Name}}</span>
-    {{end}}
+    <div class="track-info">
+        {{if .Artist}}
+        <span class="artist-name">{{.Artist}}</span>
+        <span class="track-title">{{.Name}}</span>
+        {{else}}
+        <span class="track-title">{{.Name}}</span>
+        {{end}}
+    </div>
 </div>
