@@ -3,30 +3,41 @@ package database
 import (
 	"database/sql"
 	"djtracker/internal/config"
-	"log/slog"
+	"djtracker/internal/utils"
 	"os"
 	"path/filepath"
 )
 
-func Init(config *config.Config) (*sql.DB, error) {
-	if err := os.MkdirAll(filepath.Dir(config.Database.Path), 0755); err != nil {
-		return nil, err
+func createDbPath(dbPath string) error {
+	if err := os.MkdirAll(filepath.Dir(dbPath), 0755); err != nil {
+		return err
 	}
-
-	db, err := sql.Open("sqlite", config.Database.Path)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := db.Ping(); err != nil {
-		return nil, err
-	}
-
-	return db, nil
+	return nil
 }
 
-func Migrate(db *sql.DB, log *slog.Logger) error {
-	log.Debug("Initializing database")
+func UseDb(conf *config.Config, app func(db *sql.DB) error) error {
+	if err := createDbPath(conf.Database.Path); err != nil {
+		return err
+	}
+
+	db, err := sql.Open("sqlite", conf.Database.Path)
+	if err != nil {
+		return err
+	}
+	defer utils.SafeClose(db)
+
+	if err := db.Ping(); err != nil {
+		return err
+	}
+
+	if err := migrate(db); err != nil {
+		return err
+	}
+
+	return app(db)
+}
+
+func migrate(db *sql.DB) error {
 	if err := createEventsTable(db); err != nil {
 		return err
 	}

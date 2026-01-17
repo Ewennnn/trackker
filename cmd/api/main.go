@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"djtracker/internal/api"
 	"djtracker/internal/api/formatter"
 	"djtracker/internal/config"
@@ -40,24 +41,20 @@ func main() {
 		log.Fatal(err)
 	}
 
-	db, err := database.Init(conf)
+	err = database.UseDb(conf, func(db *sql.DB) error {
+		repo := repository.New(logger, db)
+		if err := repo.PrepareEvent(); err != nil {
+			return err
+		}
+
+		tracker := service.New(logger, conf, repo, tracksParser)
+		tracker.StartTracking()
+
+		server := api.NewServer(conf, logger, tracker, sseFormatter)
+		return server.Start()
+	})
+
 	if err != nil {
-		log.Fatal(err)
-	}
-	if err := database.Migrate(db, logger); err != nil {
-		log.Fatal(err)
-	}
-
-	repo := repository.New(logger, db)
-	if err := repo.PrepareEvent(); err != nil {
-		log.Fatal(err)
-	}
-
-	trackerService := service.New(logger, conf, repo, tracksParser)
-	trackerService.StartTracking()
-
-	server := api.NewServer(conf, logger, trackerService, sseFormatter)
-	if err := server.Start(); err != nil {
-		log.Fatal(err)
+		log.Panicln(err)
 	}
 }
