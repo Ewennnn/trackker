@@ -1,22 +1,12 @@
 package utils
 
 import (
-	"encoding/base64"
-	"fmt"
 	"io"
 	"log"
 	"os"
 
 	"github.com/dhowden/tag"
 )
-
-func SafePointer[T any](p *T) T {
-	var pp T
-	if p != nil {
-		return *p
-	}
-	return pp
-}
 
 func EmptyStringNil(s string) *string {
 	if s == "" {
@@ -51,18 +41,11 @@ func GetTrackFileMetadata(path string) tag.Metadata {
 	return metadata
 }
 
-func GetTrackCover(path string) *string {
+func GetTrackCover(path string) *tag.Picture {
 	metadata := GetTrackFileMetadata(path)
 	if metadata == nil {
 		return nil
 	}
 
-	if p := metadata.Picture(); p != nil {
-		mime := p.MIMEType
-		data := base64.StdEncoding.EncodeToString(p.Data)
-		picture := fmt.Sprintf("data:%s;base64,%s", mime, data)
-		return &picture
-	}
-
-	return nil
+	return metadata.Picture()
 }

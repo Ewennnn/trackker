@@ -1,11 +1,9 @@
 <div class="track-container">
-    {{if .Cover}}
     <img src="/cover/{{.ID}}" alt="cover" class="cover"/>
-    {{end}}
 
-    {{if ne .Artist ""}}
-    <span class="track-title">{{.Artist}} - {{.Title}}</span>
+    {{if .Artist}}
+    <span class="track-title">{{.Artist}} - {{.Name}}</span>
     {{else}}
-    <span class="track-title">{{.Title}}</span>
+    <span class="track-title">{{.Name}}</span>
     {{end}}
 </div>

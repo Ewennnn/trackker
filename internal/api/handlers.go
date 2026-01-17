@@ -1,10 +1,9 @@
 package api
 
 import (
-	"encoding/base64"
-	"fmt"
+	"djtracker/internal/model"
+	"djtracker/internal/utils"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -17,31 +16,20 @@ func (s *Server) LoadIndex() http.HandlerFunc {
 func (s *Server) GetCover() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		current := s.tracker.GetCurrentTrack()
-		if current == nil || current.Cover == nil {
+		if current == nil {
 			http.NotFound(w, r)
 			return
 		}
 
-		// Extraire le mime type depuis le data URL
-		parts := strings.SplitN(*current.Cover, ",", 2)
-		if len(parts) != 2 {
-			http.Error(w, "Invalid cover data", http.StatusInternalServerError)
-			return
-		}
-		meta, b64data := parts[0], parts[1]
-
-		mime := strings.TrimPrefix(meta, "data:")
-		mime = strings.TrimSuffix(mime, ";base64")
-
-		imgBytes, err := base64.StdEncoding.DecodeString(b64data)
-		if err != nil {
-			http.Error(w, "Failed to decode image", http.StatusInternalServerError)
+		cover := utils.GetTrackCover(current.Path)
+		if cover == nil {
+			http.NotFound(w, r)
 			return
 		}
 
-		w.Header().Set("Content-Type", mime)
+		w.Header().Set("Content-Type", cover.MIMEType)
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(imgBytes)
+		_, _ = w.Write(cover.Data)
 	}
 }
 
@@ -61,14 +49,7 @@ func (s *Server) ListenForTracksSSE() http.HandlerFunc {
 
 		sseW := &Sse{w}
 		if current := s.tracker.GetCurrentTrack(); current != nil {
-			tmpl, err := s.formatter.Format(current)
-			if err != nil {
-				fmt.Println(err)
-				tmpl = "<h1>Error</h1>"
-			}
-			if err := sseW.SendEvent("track", tmpl); err != nil {
-				return
-			}
+			s.formatAndSendSse(sseW, current)
 		}
 
 		ping := time.NewTicker(1 * time.Second)
@@ -83,15 +64,20 @@ func (s *Server) ListenForTracksSSE() http.HandlerFunc {
 				}
 				flusher.Flush()
 			case track := <-tracksChannel:
-				tmpl, err := s.formatter.Format(track)
-				if err != nil {
-					fmt.Println(err)
-					tmpl = "<h1>Error</h1>"
-				}
-				if err := sseW.SendEvent("track", tmpl); err != nil {
-					break
-				}
+				s.formatAndSendSse(sseW, track)
 			}
 		}
+	}
+}
+
+func (s *Server) formatAndSendSse(sseW *Sse, track *model.Track) {
+	response, err := s.formatter.Format(track)
+	if err != nil {
+		s.log.Error("Failed to format cover data", err)
+		return
+	}
+
+	if err := sseW.SendEvent("track", response); err != nil {
+		s.log.Error("Failed to send response", err)
 	}
 }

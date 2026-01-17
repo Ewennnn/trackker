@@ -12,7 +12,6 @@ type Track struct {
 	PlayAt   time.Time     `db:"play_at"`
 	Path     string        `db:"path"`
 	Duration time.Duration `db:"duration"`
-	Cover    *string       `db:"cover"`
 }
 
 func (t *Track) IsFinished(now time.Time) bool {

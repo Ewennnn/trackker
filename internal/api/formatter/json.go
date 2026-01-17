@@ -12,7 +12,6 @@ type trackDTO struct {
 	Name     string        `json:"name"`
 	PlayAt   string        `json:"play_at"`
 	Duration time.Duration `json:"duration"`
-	Cover    *string       `json:"cover,omitempty"`
 }
 
 func newTrackDTO(t *model.Track) *trackDTO {
@@ -22,7 +21,6 @@ func newTrackDTO(t *model.Track) *trackDTO {
 		Name:     t.Name,
 		PlayAt:   t.PlayAt.Format(time.RFC3339),
 		Duration: t.Duration,
-		Cover:    t.Cover,
 	}
 }
 

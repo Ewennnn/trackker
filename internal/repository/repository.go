@@ -6,8 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	_ "modernc.org/sqlite"
 	"time"
+
+	_ "modernc.org/sqlite"
 )
 
 type Repository struct {
@@ -76,8 +77,8 @@ func (r *Repository) createNewEvent(date time.Time) error {
 
 func (r *Repository) AddTrackToHistory(track *model.Track) {
 	res, err := r.db.Exec(`
-		INSERT INTO tracks (event_id, artist, name, play_at, duration, cover, path) VALUES (?, ?, ?, ?, ?, ?, ?)
-	`, r.event.ID, track.Artist, track.Name, track.PlayAt, track.Duration, track.Cover, track.Path)
+		INSERT INTO tracks (event_id, artist, name, play_at, duration, path) VALUES (?, ?, ?, ?, ?, ?)
+	`, r.event.ID, track.Artist, track.Name, track.PlayAt, track.Duration, track.Path)
 
 	if err != nil {
 		r.log.Warn("Failed to insert track into history", "event", r.event.ID, "track", fmt.Sprintf("%#v", track))
@@ -95,13 +96,12 @@ func (r *Repository) AddTrackToHistory(track *model.Track) {
 
 func (r *Repository) FindLastTrack() (*model.Track, error) {
 	rows := r.db.QueryRow(`
-		SELECT id, event_id ,artist, name, play_at, duration, cover, path FROM tracks WHERE event_id = ? ORDER BY id DESC LIMIT 1
+		SELECT id, event_id ,artist, name, play_at, duration, path FROM tracks WHERE event_id = ? ORDER BY id DESC LIMIT 1
 	`, r.event.ID)
 
 	var track model.Track
 
 	var artist sql.NullString
-	var cover sql.NullString
 
 	err := rows.Scan(
 		&track.ID,
@@ -110,7 +110,6 @@ func (r *Repository) FindLastTrack() (*model.Track, error) {
 		&track.Name,
 		&track.PlayAt,
 		&track.Duration,
-		&cover,
 		&track.Path,
 	)
 
@@ -123,10 +122,6 @@ func (r *Repository) FindLastTrack() (*model.Track, error) {
 
 	if artist.Valid {
 		track.Artist = &artist.String
-	}
-
-	if cover.Valid {
-		track.Cover = &cover.String
 	}
 
 	return &track, nil

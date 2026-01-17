@@ -35,7 +35,6 @@ func (t *virtualDjTrack) mapToTrack() *model.Track {
 		PlayAt:   time.Unix(t.LastPlayTime, 0),
 		Path:     t.Path,
 		Duration: time.Duration(t.SongLength * float64(time.Second)),
-		Cover:    utils.GetTrackCover(t.Path),
 	}
 }
 
