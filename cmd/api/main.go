@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"djtracker/internal/api"
 	"djtracker/internal/api/formatter"
@@ -48,7 +49,10 @@ func main() {
 		}
 
 		tracker := service.NewTracker(logger, conf, repo, tracksParser)
-		tracker.StartTracking()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		tracker.StartTracking(ctx)
+		defer cancel()
 
 		server := api.NewServer(conf, logger, tracker, sseFormatter)
 		return server.Start()

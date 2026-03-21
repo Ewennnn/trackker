@@ -2,6 +2,7 @@ package service
 
 import (
 	"bufio"
+	"context"
 	"djtracker/internal/config"
 	"djtracker/internal/model"
 	"djtracker/internal/repository"
@@ -60,30 +61,44 @@ func (t *Tracker) GetCurrentTrack() *model.Track {
 	return track
 }
 
-func (t *Tracker) StartTracking() {
-	go t.superviseHistoryReader()
-	go t.listenHistory()
+func (t *Tracker) StartTracking(ctx context.Context) {
+	go t.superviseHistoryReader(ctx)
+	go t.listenHistory(ctx)
 }
 
-func (t *Tracker) superviseHistoryReader() {
+func (t *Tracker) superviseHistoryReader(ctx context.Context) {
 	for {
-		err := t.parser.WithHistoryTrackReader(func(reader *bufio.Reader) error {
-			t.log.Info("Ready to read tracks history")
-			return t.parser.StartHistoryTracking(reader, t.liveTrackList)
-		})
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			err := t.parser.WithHistoryTrackReader(func(reader *bufio.Reader) error {
+				t.log.Info("Ready to read tracks history")
+				return t.parser.StartHistoryTracking(ctx, reader, t.liveTrackList)
+			})
 
-		if err != nil {
-			t.log.Error("history reader crashed", "err", err)
-			time.Sleep(2 * time.Second)
+			if err != nil {
+				t.log.Error("history reader crashed", "err", err)
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(2 * time.Second):
+				}
+			}
 		}
 	}
 }
 
 // listenHistory Reçoit les Tracks traités par le Parser
 // et les envoie dans les différents canaux de diffusion
-func (t *Tracker) listenHistory() {
-	for track := range t.liveTrackList {
-		t.repo.AddTrackToHistory(track)
-		t.trackBroadcaster.Broadcast(track)
+func (t *Tracker) listenHistory(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case track := <-t.liveTrackList:
+			t.repo.AddTrackToHistory(track)
+			t.trackBroadcaster.Broadcast(track)
+		}
 	}
 }

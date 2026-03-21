@@ -2,6 +2,7 @@ package parser
 
 import (
 	"bufio"
+	"context"
 	"djtracker/internal/model"
 	"djtracker/internal/utils"
 	"encoding/xml"
@@ -129,39 +130,48 @@ func (p *VirtualDJParser) WithHistoryTrackReader(fn func(reader *bufio.Reader) e
 }
 
 // StartHistoryTracking lit le fichier d'historique et convertit les informations dans un format normalisé au programme.
-func (p *VirtualDJParser) StartHistoryTracking(reader *bufio.Reader, ch chan *model.Track) error {
+func (p *VirtualDJParser) StartHistoryTracking(ctx context.Context, reader *bufio.Reader, ch chan *model.Track) error {
 	for {
-		data, err := reader.ReadString('\n')
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				time.Sleep(200 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			data, err := reader.ReadString('\n')
+			if err != nil {
+				if errors.Is(err, io.EOF) {
+					time.Sleep(200 * time.Millisecond)
+					continue
+				}
+				p.log.Error("Error while reading file", err)
+				return err
+			}
+
+			if !strings.HasPrefix(data, trackPrefix) {
+				p.log.Error("No prefix detected")
 				continue
 			}
-			p.log.Error("Error while reading file", err)
-			return err
-		}
 
-		if !strings.HasPrefix(data, trackPrefix) {
-			p.log.Error("No prefix detected")
-			continue
-		}
+			path, err := reader.ReadString('\n')
+			if err != nil {
+				if errors.Is(err, io.EOF) {
+					p.log.Error("Reached end of file on second line")
+					continue
+				}
+				p.log.Error("Error while reading file", err)
+				return err
+			}
 
-		path, err := reader.ReadString('\n')
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				p.log.Error("Reached end of file on second line")
+			track, err := p.parseStringTrackData(data, path)
+			if err != nil {
+				p.log.Error("Error on parse track data", "err", err)
 				continue
 			}
-			p.log.Error("Error while reading file", err)
-			return err
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case ch <- track:
+			}
 		}
-
-		track, err := p.parseStringTrackData(data, path)
-		if err != nil {
-			p.log.Error("Error on parse track data", "err", err)
-			continue
-		}
-		ch <- track
 	}
 }
 

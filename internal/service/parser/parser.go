@@ -2,6 +2,7 @@ package parser
 
 import (
 	"bufio"
+	"context"
 	"djtracker/internal/config"
 	"djtracker/internal/model"
 	"fmt"
@@ -14,7 +15,7 @@ const (
 
 type Parser interface {
 	CheckState() error
-	StartHistoryTracking(reader *bufio.Reader, ch chan *model.Track) error
+	StartHistoryTracking(ctx context.Context, reader *bufio.Reader, ch chan *model.Track) error
 	WithHistoryTrackReader(fn func(reader *bufio.Reader) error) error
 }
 
