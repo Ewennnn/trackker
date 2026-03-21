@@ -80,11 +80,6 @@ body {
     overflow: visible;
 }
 
-.waiting-text {
-    font-size: clamp(1.2rem, 3vw, 2.5rem);
-    opacity: 0.5;
-}
-
 /* Animations adaptatives */
 @keyframes glow {
     from { filter: drop-shadow(0 0 1vw rgba(255, 255, 255, 0.1)); }

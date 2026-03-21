@@ -13,6 +13,8 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
@@ -51,14 +53,35 @@ func main() {
 		tracker := service.NewTracker(logger, conf, repo, tracksParser)
 
 		ctx, cancel := context.WithCancel(context.Background())
-		tracker.StartTracking(ctx)
 		defer cancel()
+		tracker.StartTracking(ctx)
 
 		server := api.NewServer(conf, logger, tracker, sseFormatter)
-		return server.Start()
+		serverError := make(chan error, 1)
+		go func() {
+			serverError <- server.Start(ctx)
+		}()
+
+		return listenForSignals(serverError, func() error {
+			logger.Info("Signal received to close the app")
+			cancel()
+			return server.Shutdown()
+		})
 	})
 
 	if err != nil {
 		log.Panicln(err)
+	}
+}
+
+func listenForSignals(serverError chan error, callback func() error) error {
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	select {
+	case <-serverError:
+		return callback()
+	case <-sigChan:
+		return callback()
 	}
 }
