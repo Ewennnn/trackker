@@ -75,11 +75,7 @@ func (p *VirtualDJParser) getHistoryTracksPath() (string, error) {
 			continue
 		}
 
-		if fileDate.Equal(today) {
-			return filepath.Join(p.path, file.Name()), nil
-		}
-
-		if fileDate.Equal(yesterday) && now.Hour() < 9 {
+		if fileDate.Equal(today) || fileDate.Equal(yesterday) && now.Hour() < 9 {
 			return filepath.Join(p.path, file.Name()), nil
 		}
 	}
