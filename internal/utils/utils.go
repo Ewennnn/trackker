@@ -15,6 +15,16 @@ func EmptyStringNil(s string) *string {
 	return &s
 }
 
+func StringPtrEqual(s1, s2 *string) bool {
+	if s1 == nil && s2 == nil {
+		return true
+	}
+	if s1 == nil || s2 == nil {
+		return false
+	}
+	return *s1 == *s2
+}
+
 func Exists(path string) bool {
 	_, err := os.Stat(path)
 	if err == nil {

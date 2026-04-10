@@ -1,6 +1,7 @@
 package model
 
 import (
+	"djtracker/internal/utils"
 	"time"
 )
 
@@ -17,4 +18,15 @@ type Track struct {
 func (t *Track) IsFinished(now time.Time) bool {
 	end := t.PlayAt.Add(t.Duration)
 	return end.Before(now)
+}
+
+// Equals compare deux tracks pour vérifier si elles sont identiques
+func (t *Track) Equals(other *Track) bool {
+	if t == nil || other == nil {
+		return false
+	}
+	return utils.StringPtrEqual(t.Artist, other.Artist) &&
+		t.Name == other.Name &&
+		t.Path == other.Path &&
+		t.PlayAt == other.PlayAt
 }

@@ -74,6 +74,20 @@ func (t *Tracker) superviseHistoryReader(ctx context.Context) {
 		default:
 			err := t.parser.WithHistoryTrackReader(func(reader *bufio.Reader) error {
 				t.log.Info("Ready to read tracks history")
+
+				lastSavedTrack, _ := t.repo.FindLastTrack()
+				tracks, err := t.parser.UpdateHistory(reader, lastSavedTrack)
+				if err != nil {
+					t.log.Error("Failed to update history", "err", err)
+				}
+
+				if len(tracks) > 0 {
+					for i := range len(tracks) - 1 {
+						t.repo.AddTrackToHistory(tracks[i])
+					}
+					t.liveTrackList <- tracks[len(tracks)-1]
+				}
+
 				return t.parser.StartHistoryTracking(ctx, reader, t.liveTrackList)
 			})
 

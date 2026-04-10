@@ -40,9 +40,8 @@ func (t *virtualDjTrack) mapToTrack() *model.Track {
 }
 
 type VirtualDJParser struct {
-	log     *slog.Logger
-	path    string
-	readAll bool
+	log  *slog.Logger
+	path string
 }
 
 func (p *VirtualDJParser) CheckState() error {
@@ -83,43 +82,18 @@ func (p *VirtualDJParser) getHistoryTracksPath() (string, error) {
 	return "", errors.New("no history file found")
 }
 
-func (p *VirtualDJParser) replaceCursor(f *os.File) error {
-	if !p.readAll {
-		stat, err := f.Stat()
-		if err != nil {
-			return err
-		}
-
-		// Positionnement à la fin du fichier
-		_, err = f.Seek(stat.Size(), 0)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (p *VirtualDJParser) WithHistoryTrackReader(fn func(reader *bufio.Reader) error) error {
-	// Ici la logique de recherche de fichier
 	path, err := p.getHistoryTracksPath()
 	if err != nil {
-		p.readAll = true
 		return err
 	}
 
-	// Ouverture du fichier
 	file, err := os.Open(path)
 	if err != nil {
 		return err
 	}
 	defer utils.SafeClose(file)
 
-	if err := p.replaceCursor(file); err != nil {
-		return err
-	}
-	p.readAll = false
-
-	// Ouverture du reader
 	reader := bufio.NewReader(file)
 
 	return fn(reader) // Appel de la logique
@@ -169,6 +143,55 @@ func (p *VirtualDJParser) StartHistoryTracking(ctx context.Context, reader *bufi
 			}
 		}
 	}
+}
+
+// UpdateHistory lit le fichier d'historique m3u et retourne les tracks non enregistrées.
+// Si track est nil, retourne toutes les tracks du fichier.
+// Sinon, retourne les tracks qui viennent après la track de référence passée en paramètre.
+// Le fichier est lu ligne par ligne (format m3u : alternance de données XML et chemins de fichiers).
+func (p *VirtualDJParser) UpdateHistory(reader *bufio.Reader, track *model.Track) ([]*model.Track, error) {
+	var newTracks []*model.Track
+	// Si track est nil, on retourne toutes les tracks du fichier
+	foundTrack := track == nil
+
+	for {
+		// Lire la ligne de données (contient les infos XML)
+		data, err := reader.ReadString('\n')
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				// Fin du fichier atteinte
+				break
+			}
+			return nil, err
+		}
+
+		// Ignorer les lignes qui ne contiennent pas les données de track
+		if !strings.HasPrefix(data, trackPrefix) {
+			continue
+		}
+
+		// Lire la ligne de chemin du fichier
+		path, err := reader.ReadString('\n')
+		if err != nil && !errors.Is(err, io.EOF) {
+			return nil, err
+		}
+
+		// Parser la track depuis les deux lignes
+		currentTrack, err := p.parseStringTrackData(data, path)
+		if err != nil {
+			continue
+		}
+
+		// Si on a trouvé la track de référence, commencer à collectionner les suivantes
+		if foundTrack {
+			newTracks = append(newTracks, currentTrack)
+		} else if currentTrack.Equals(track) {
+			// Marquer qu'on a trouvé la track de référence
+			foundTrack = true
+		}
+	}
+
+	return newTracks, nil
 }
 
 func (p *VirtualDJParser) parseStringTrackData(data, path string) (*model.Track, error) {
