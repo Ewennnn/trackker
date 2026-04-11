@@ -10,14 +10,195 @@
     <script src="https://cdn.jsdelivr.net/npm/htmx-ext-sse@2.2.4" integrity="sha384-A986SAtodyH8eg8x8irJnYUk7i9inVQqYigD6qZ9evobksGNIXfeFvDwLSHcp31N" crossorigin="anonymous"></script>
 
     <script>
-        // Si l'image échoue, on la retire.
-        // Note: Le CSS ajustera le layout automatiquement grâce au Flexbox.
-        document.addEventListener('error', e => {
-            const el = e.target
-            if (el.tagName === 'IMG' && el.classList.contains('cover')) {
-                el.remove()
+        let pendingColorUpdate = false;
+
+        /**
+         * Extrait les couleurs dominantes d'une image
+         * Retourne à la fois les couleurs pour le gradient et une couleur d'accent
+         */
+        function extractDominantColors(imgElement) {
+            if (!imgElement || !imgElement.complete || imgElement.naturalWidth === 0) {
+                return null;
             }
-        }, true)
+
+            const canvas = document.createElement('canvas');
+            canvas.width = 80;
+            canvas.height = 80;
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+            try {
+                ctx.drawImage(imgElement, 0, 0, 80, 80);
+                const imageData = ctx.getImageData(0, 0, 80, 80);
+                const data = imageData.data;
+
+                const colors = [];
+                for (let i = 0; i < data.length; i += 4) {
+                    if (data[i + 3] > 125) {
+                        colors.push({ r: data[i], g: data[i + 1], b: data[i + 2] });
+                    }
+                }
+
+                colors.sort((a, b) => {
+                    const lumaA = a.r * 0.299 + a.g * 0.587 + a.b * 0.114;
+                    const lumaB = b.r * 0.299 + b.g * 0.587 + b.b * 0.114;
+                    return lumaB - lumaA;
+                });
+
+                const gradientColors = [colors[Math.floor(colors.length * 0.2)], colors[Math.floor(colors.length * 0.5)], colors[Math.floor(colors.length * 0.8)]].filter(c => c);
+                const accentColor = findComplementaryHue(gradientColors, colors);
+
+                return { gradient: gradientColors, accent: accentColor };
+            } catch (e) {
+                return null;
+            }
+        }
+
+        /**
+         * Convertit une couleur RGB en sa valeur de teinte (hue)
+         * Retourne une valeur entre 0 et 1
+         */
+        function rgbToHue(r, g, b) {
+            r /= 255;
+            g /= 255;
+            b /= 255;
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
+            let h = 0;
+
+            if (max !== min) {
+                const d = max - min;
+                switch (max) {
+                    case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+                    case g: h = ((b - r) / d + 2) / 6; break;
+                    case b: h = ((r - g) / d + 4) / 6; break;
+                }
+            }
+            return h;
+        }
+
+        /**
+         * Trouve une couleur d'accent avec une teinte très différente du gradient
+         * Cela garantit que la couleur du texte contrastera bien avec le background
+         */
+        function findComplementaryHue(gradientColors, allColors) {
+            const gradientHues = gradientColors.map(c => rgbToHue(c.r, c.g, c.b));
+
+            for (const color of allColors) {
+                const hue = rgbToHue(color.r, color.g, color.b);
+                const luma = (color.r * 0.299 + color.g * 0.587 + color.b * 0.114) / 255;
+
+                // Ignorer les couleurs trop claires ou trop sombres
+                if (luma < 0.15 || luma > 0.95) continue;
+
+                // Vérifier que la teinte est très différente
+                const isDifferent = gradientHues.every(gHue => {
+                    const hueDiff = Math.abs(hue - gHue);
+                    const circularDiff = Math.min(hueDiff, 1 - hueDiff);
+                    return circularDiff > 0.15;
+                });
+
+                if (isDifferent) return color;
+            }
+
+            // Fallback blanc
+            return { r: 255, g: 255, b: 255 };
+        }
+
+        /**
+         * Applique le thème (gradient + couleurs du texte) à partir de la cover
+         * Gère la transition fluide des couleurs
+         */
+        function applyThemeFromCover(imgElement) {
+            if (pendingColorUpdate) return;
+            pendingColorUpdate = true;
+
+            requestAnimationFrame(() => {
+                const colorData = extractDominantColors(imgElement);
+                if (!colorData || !colorData.gradient || colorData.gradient.length === 0) {
+                    pendingColorUpdate = false;
+                    return;
+                }
+
+                // Créer le gradient pour le background
+                const colors = colorData.gradient;
+                const newGradient = `linear-gradient(135deg, rgb(${colors[0].r}, ${colors[0].g}, ${colors[0].b}) 0%, rgb(${colors[1].r}, ${colors[1].g}, ${colors[1].b}) 50%, rgb(${colors[2].r}, ${colors[2].g}, ${colors[2].b}) 100%)`;
+
+                // Initialiser le div de transition s'il n'existe pas
+                let transitionDiv = document.getElementById('transition-layer');
+                if (!transitionDiv) {
+                    transitionDiv = document.createElement('div');
+                    transitionDiv.id = 'transition-layer';
+                    transitionDiv.style.cssText = `
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        z-index: -1;
+                        opacity: 0;
+                        transition: opacity 2.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+                        pointer-events: none;
+                    `;
+                    document.body.appendChild(transitionDiv);
+                }
+
+                // Appliquer le nouveau gradient et l'opacifier pour une transition fluide
+                transitionDiv.style.background = newGradient;
+                setTimeout(() => {
+                    transitionDiv.style.opacity = '1';
+                }, 10);
+
+                // Finaliser la transition
+                setTimeout(() => {
+                    document.body.style.background = newGradient;
+                    transitionDiv.style.opacity = '0';
+                }, 2600);
+
+                // Appliquer la couleur d'accent au texte
+                const accentColor = colorData.accent;
+                const textColorRgb = `rgb(${accentColor.r}, ${accentColor.g}, ${accentColor.b})`;
+
+                const title = document.querySelector('.track-title');
+                const artist = document.querySelector('.artist-name');
+
+                if (title) title.style.color = textColorRgb;
+                if (artist) artist.style.color = textColorRgb;
+
+                pendingColorUpdate = false;
+            });
+        }
+
+        // Ajouter animation de fade-out avant le swap
+        document.addEventListener('htmx:beforeSwap', (event) => {
+            const container = document.querySelector('.track-container');
+            if (container && event.detail.xhr.responseURL.includes('/events')) {
+                container.classList.add('fade-out');
+            }
+        });
+
+        // Appliquer le thème après le swap
+        document.addEventListener('htmx:afterSwap', (event) => {
+            const container = document.querySelector('.track-container');
+            if (container) {
+                container.classList.remove('fade-out');
+            }
+
+            const img = document.querySelector('.cover');
+            if (img && img.complete && img.naturalWidth > 0) {
+                applyThemeFromCover(img);
+            } else if (img) {
+                img.onload = function() {
+                    applyThemeFromCover(this);
+                };
+            }
+        });
+
+        // Nettoyer les images cassées
+        document.addEventListener('error', e => {
+            if (e.target.tagName === 'IMG' && e.target.classList.contains('cover')) {
+                e.target.remove();
+            }
+        }, true);
     </script>
 </head>
 <body>

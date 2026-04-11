@@ -1,18 +1,31 @@
-body {
+* {
     margin: 0;
     padding: 0;
+    box-sizing: border-box;
+}
+
+body {
     width: 100vw;
     height: 100vh;
-    background-color: #121212;
+    background: linear-gradient(135deg, rgb(10, 14, 39) 0%, rgb(26, 10, 46) 50%, rgb(22, 33, 62) 100%) fixed;
     color: white;
-    font-family: 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
     display: flex;
     justify-content: center;
     align-items: center;
     overflow: hidden;
+    position: relative;
 }
 
-#app, [sse-connect] {
+#app {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+[sse-connect] {
     width: 100%;
     height: 100%;
 }
@@ -22,71 +35,117 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    /* Gap dynamique : 4% de la hauteur de l'écran */
-    gap: 4vh;
+    gap: clamp(2rem, 8vh, 4rem);
     height: 100%;
     width: 100%;
-    animation: fadeIn 0.5s ease-out;
+    padding: clamp(1rem, 5vh, 3rem);
+    animation: fadeInScale 0.6s ease-out;
 }
 
-/* Cover dynamique */
+.track-container.fade-out {
+    animation: fadeOutScale 0.5s ease-in forwards;
+}
+
+/* Cover */
 .cover {
-    /* La cover prend 40% de la plus petite dimension (largeur ou hauteur)
-       pour rester toujours visible sans scroller */
-    width: 45vmin;
-    height: 45vmin;
+    width: clamp(280px, 55vmin, 600px);
+    height: clamp(280px, 55vmin, 600px);
     object-fit: cover;
-    border-radius: 2vw; /* Arrondi proportionnel */
-    filter: drop-shadow(0 0 2vw rgba(255, 255, 255, 0.2));
-    animation: glow 3s infinite alternate ease-in-out;
+    border-radius: 3vw;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    animation: float 6s ease-in-out infinite;
+    transition: transform 0.3s ease-out;
+    will-change: transform;
 }
 
+.cover:hover {
+    transform: scale(1.02);
+}
+
+/* Track info container */
 .track-info {
     text-align: center;
-    width: 90%; /* Évite que le texte touche les bords */
+    width: min(90%, 1100px);
     user-select: none;
+    animation: slideUp 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both;
+    background: rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(8px);
+    padding: clamp(1rem, 3vh, 2rem) clamp(1.5rem, 5vw, 3rem);
+    border-radius: 2rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
 .artist-name {
     display: block;
-    /* Taille adaptative : min 1rem, max 2rem */
-    font-size: clamp(1rem, 2.5vw, 1.8rem);
+    font-size: clamp(1.3rem, 3vw, 1.9rem);
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.3vw;
-    color: #aaaaaa;
-    margin-bottom: 1vh;
+    letter-spacing: 0.15em;
+    color: #b0b0ff;
+    margin-bottom: 0.8rem;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    transition: color 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 .track-title {
     display: block;
-    font-size: clamp(1.5rem, 6vw, 5rem);
-    font-weight: 800;
-
-    /* On augmente légèrement la hauteur de ligne */
-    line-height: 1.2;
-
-    /* On ajoute un padding pour que le dégradé ne soit pas coupé */
-    padding-bottom: 0.1em;
-    padding-top: 0.1em;
-
-    background: linear-gradient(to bottom, #ffffff, #a0a0a0);
-    -webkit-text-fill-color: transparent;
-
-    /* Empêche la coupure sur certains navigateurs */
-    background-clip: text;
-
-    /* Optionnel : pour les titres très longs */
+    font-size: clamp(2.5rem, 10vw, 5.5rem);
+    font-weight: 950;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
     word-wrap: break-word;
-    overflow: visible;
+    color: white;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+    transition: color 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
-/* Animations adaptatives */
-@keyframes glow {
-    from { filter: drop-shadow(0 0 1vw rgba(255, 255, 255, 0.1)); }
-    to { filter: drop-shadow(0 0 4vw rgba(255, 255, 255, 0.4)); }
+/* Animations */
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(2vh); }
-    to { opacity: 1; transform: translateY(0); }
+@keyframes fadeOutScale {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.98);
+    }
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-12px); }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .track-info {
+        padding: 1rem 1.5rem;
+    }
+
+    .cover {
+        border-radius: 4vw;
+    }
 }
