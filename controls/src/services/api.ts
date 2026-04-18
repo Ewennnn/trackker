@@ -1,0 +1,108 @@
+export type CurrentTrack = {
+  title: string
+  artist: string
+  filePath: string
+  coverUrl: string | null
+}
+
+export type SupervisionStatus = {
+  httpOnline: boolean
+  connectedClients: number
+  currentTrack: CurrentTrack | null
+}
+
+type SupervisionPayload = {
+  httpOnline?: boolean
+  connectedClients?: number
+  currentTrack?: {
+    title?: string
+    artist?: string
+    filePath?: string
+    coverUrl?: string | null
+  } | null
+}
+
+type SupervisionHandlers = {
+  onStatus: (status: SupervisionStatus) => void
+  onOpen?: () => void
+  onError?: (error: Error) => void
+}
+
+const API_BASE_URL = import.meta.env.VITE_TRACKKER_API_BASE ?? 'http://localhost:9000'
+export const PREVIEW_URL = import.meta.env.VITE_TRACKKER_PREVIEW_URL ?? 'http://192.168.1.60:9000'
+const CONTROL_PIN = import.meta.env.VITE_TRACKKER_CONTROL_PIN ?? '123456'
+
+const toUrl = (path: string): string => `${API_BASE_URL}${path}`
+
+const fetchJson = async <T>(path: string, init?: RequestInit): Promise<T> => {
+  const response = await fetch(toUrl(path), {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init?.headers ?? {}),
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status} on ${path}`)
+  }
+
+  return (await response.json()) as T
+}
+
+export const getExpectedPin = (): string => CONTROL_PIN
+
+const toSupervisionStatus = (payload: SupervisionPayload): SupervisionStatus => {
+  const hasTrack = payload.currentTrack !== null && payload.currentTrack !== undefined
+
+  return {
+    httpOnline: payload.httpOnline ?? false,
+    connectedClients: payload.connectedClients ?? 0,
+    currentTrack: hasTrack
+      ? {
+          title: payload.currentTrack?.title ?? 'Titre inconnu',
+          artist: payload.currentTrack?.artist ?? 'Artiste inconnu',
+          filePath: payload.currentTrack?.filePath ?? '-',
+          coverUrl: payload.currentTrack?.coverUrl ?? null,
+        }
+      : null,
+  }
+}
+
+export const connectSupervisionStream = (handlers: SupervisionHandlers): (() => void) => {
+  const source = new EventSource(toUrl('/api/control/supervision/events'))
+
+  source.onopen = () => {
+    handlers.onOpen?.()
+  }
+
+  source.onmessage = (event) => {
+    try {
+      const payload = JSON.parse(event.data) as SupervisionPayload
+      handlers.onStatus(toSupervisionStatus(payload))
+    } catch {
+      handlers.onError?.(new Error('Payload SSE supervision invalide.'))
+    }
+  }
+
+  source.onerror = () => {
+    handlers.onError?.(new Error('Connexion SSE supervision interrompue.'))
+  }
+
+  return () => {
+    source.close()
+  }
+}
+
+export const sendControlAction = async (action: string): Promise<void> => {
+  await fetchJson('/api/control/actions/' + encodeURIComponent(action), {
+    method: 'POST',
+  })
+}
+
+// TODO(back): remplacer la validation locale par une route backend dediee (ex: POST /api/control/auth)
+// TODO(back): implementer GET /api/control/supervision/events (SSE) pour exposer httpOnline, connectedClients et currentTrack
+// TODO(back): implementer POST /api/control/actions/{action} pour blackout/freeze_tracking
+
+
+
