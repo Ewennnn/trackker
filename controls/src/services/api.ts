@@ -30,7 +30,6 @@ type SupervisionHandlers = {
 
 const API_BASE_URL = import.meta.env.VITE_TRACKKER_API_BASE ?? 'http://localhost:9000'
 export const PREVIEW_URL = import.meta.env.VITE_TRACKKER_PREVIEW_URL ?? 'http://192.168.1.60:9000'
-const CONTROL_PIN = import.meta.env.VITE_TRACKKER_CONTROL_PIN ?? '123456'
 
 const toUrl = (path: string): string => `${API_BASE_URL}${path}`
 
@@ -47,10 +46,16 @@ const fetchJson = async <T>(path: string, init?: RequestInit): Promise<T> => {
     throw new Error(`HTTP ${response.status} on ${path}`)
   }
 
-  return (await response.json()) as T
+
+  const body = await response.text()
+  return body
+      ? JSON.parse(body) as T
+      : null as T
 }
 
-export const getExpectedPin = (): string => CONTROL_PIN
+export const checkPinCode = async (pinCode: string): Promise<void> => {
+  return fetchJson(`/api/pincode/${pinCode}`, { method: 'POST' })
+}
 
 const toSupervisionStatus = (payload: SupervisionPayload): SupervisionStatus => {
   const hasTrack = payload.currentTrack !== null && payload.currentTrack !== undefined

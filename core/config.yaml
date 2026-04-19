@@ -14,3 +14,6 @@ tracker:
     paths:
       - C:\Users\ewenb\Music\Musiques de fond
       - C:\Users\ewenb\Music\Evyntia
+
+control:
+  pin_code: 123123

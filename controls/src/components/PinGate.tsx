@@ -1,5 +1,5 @@
 import { Show, createSignal } from 'solid-js'
-import { getExpectedPin } from '../services/api.ts'
+import { checkPinCode } from '../services/api.ts'
 import {
   getRemainingAttempts,
   grantSessionAccess,
@@ -18,7 +18,7 @@ export const PinGate = (props: PinGateProps) => {
   const [errorMessage, setErrorMessage] = createSignal<string | null>(null)
   const [remainingAttempts, setRemainingAttempts] = createSignal(getRemainingAttempts())
 
-  const submitPin = (event: SubmitEvent) => {
+  const submitPin = async (event: SubmitEvent) => {
     event.preventDefault()
 
     if (!props.canAttempt) {
@@ -31,23 +31,25 @@ export const PinGate = (props: PinGateProps) => {
       return
     }
 
-    // TODO(back): verifier le PIN cote backend au lieu de la verification locale.
-    if (pin() === getExpectedPin()) {
-      grantSessionAccess()
-      props.onAccessGranted()
-      return
-    }
+    checkPinCode(pin())
+        .then(() => {
+            console.log("SUCCESS")
+            grantSessionAccess()
+            props.onAccessGranted()
+        })
+        .catch(err => {
+            console.log(err)
+          const nextState = registerFailedAttempt()
+          setRemainingAttempts(nextState.remainingAttempts)
+          props.onLockoutChanged()
 
-    const nextState = registerFailedAttempt()
-    setRemainingAttempts(nextState.remainingAttempts)
-    props.onLockoutChanged()
+          if (nextState.lockoutUntil) {
+            setErrorMessage('Acces bloque pendant une semaine apres 3 erreurs.')
+            return
+          }
 
-    if (nextState.lockoutUntil) {
-      setErrorMessage('Acces bloque pendant une semaine apres 3 erreurs.')
-      return
-    }
-
-    setErrorMessage(`Code invalide. Tentatives restantes: ${nextState.remainingAttempts}.`)
+          setErrorMessage(`Code invalide. Tentatives restantes: ${nextState.remainingAttempts}.`)
+        })
   }
 
   return (

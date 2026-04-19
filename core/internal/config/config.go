@@ -4,28 +4,40 @@ import (
 	"djtracker/internal/utils"
 	"fmt"
 	"os"
+	"regexp"
 
 	"github.com/goccy/go-yaml"
 )
 
+type ServerConfig struct {
+	BindAddress string `yaml:"bind_address"`
+	Port        string
+	Format      string
+}
+
+type DatabaseConfig struct {
+	Path string
+}
+
+type TrackerConfig struct {
+	History struct {
+		Source string
+		Path   string
+	}
+	Source struct {
+		Paths []string
+	}
+}
+
+type ControlConfig struct {
+	PinCode string `yaml:"pin_code"`
+}
+
 type Config struct {
-	Server struct {
-		BindAddress string `yaml:"bind_address"`
-		Port        string
-		Format      string
-	}
-	Database struct {
-		Path string
-	}
-	Tracker struct {
-		History struct {
-			Source string
-			Path   string
-		}
-		Source struct {
-			Paths []string
-		}
-	}
+	Server   ServerConfig
+	Database DatabaseConfig
+	Tracker  TrackerConfig
+	Control  ControlConfig
 }
 
 func New() (*Config, error) {
@@ -47,6 +59,11 @@ func (c *Config) Check() error {
 		if !utils.Exists(folder) {
 			return fmt.Errorf("source folder path not found: %s", folder)
 		}
+	}
+
+	r, _ := regexp.Compile("^\\d{6}$")
+	if len(c.Control.PinCode) != 6 || !r.MatchString(c.Control.PinCode) {
+		return fmt.Errorf("invalid pin code: %s", c.Control.PinCode)
 	}
 
 	return nil

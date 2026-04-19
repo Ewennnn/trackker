@@ -38,13 +38,17 @@ func (s *Server) Start(ctx context.Context) error {
 	fs := http.FileServer(http.Dir("./static"))
 	mux.Handle("GET /static/", http.StripPrefix("/static/", fs))
 
+	// Controls endpoints
+	mux.Handle("POST /api/pincode/{code}", s.checkPinCode())
+
+	// Display endpoints
 	mux.Handle("GET /", s.LoadIndex())
 	mux.Handle("GET /cover/{id}", s.GetCover())
 	mux.Handle("GET /events", s.ListenForTracksSSE(ctx))
 
 	s.httpServer = &http.Server{
 		Addr:    fmt.Sprintf("%s:%s", s.config.Server.BindAddress, s.config.Server.Port),
-		Handler: mux,
+		Handler: corsMiddleware(mux),
 	}
 
 	s.log.Info("Server listening on: " + s.httpServer.Addr)
@@ -52,6 +56,21 @@ func (s *Server) Start(ctx context.Context) error {
 		return err
 	}
 	return nil
+}
+
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) Shutdown() error {

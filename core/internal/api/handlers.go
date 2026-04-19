@@ -72,7 +72,7 @@ func (s *Server) ListenForTracksSSE(appctx context.Context) http.HandlerFunc {
 				return
 			case <-ping.C:
 				if _, err := sseW.Ping(); err != nil {
-					s.log.Error("Failed to send ping", err)
+					s.log.Error("Failed to send ping", "err", err)
 					continue
 				}
 				flusher.Flush()
@@ -94,11 +94,11 @@ func (s *Server) formatAndSendIcon(sseW *Sse) {
 func (s *Server) formatAndSendSse(sseW *Sse, track *model.Track) {
 	response, err := s.formatter.Format(track)
 	if err != nil {
-		s.log.Error("Failed to format cover data", err)
+		s.log.Error("Failed to format cover data", "err", err)
 		return
 	}
 
 	if err := sseW.SendEvent("track", response); err != nil {
-		s.log.Error("Failed to send response", err)
+		s.log.Error("Failed to send response", "err", err)
 	}
 }
