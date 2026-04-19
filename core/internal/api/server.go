@@ -8,23 +8,41 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
+
+	"github.com/alexedwards/scs/v2"
 )
 
 type Server struct {
-	config     *config.Config
-	log        *slog.Logger
-	tracker    *service.Tracker
-	formatter  formatter.Formatter
-	httpServer *http.Server
+	config         *config.Config
+	log            *slog.Logger
+	tracker        *service.Tracker
+	formatter      formatter.Formatter
+	httpServer     *http.Server
+	sessionManager *scs.SessionManager
+	attempts       map[string]*Attempt
+	mu             sync.Mutex
+}
+
+func createSessionManager() *scs.SessionManager {
+	sessionManager := scs.New()
+	sessionManager.Lifetime = 24 * time.Hour
+	sessionManager.Cookie.Name = "trackker:session_id"
+	sessionManager.Cookie.HttpOnly = true
+	sessionManager.Cookie.Path = "/"
+	sessionManager.Cookie.SameSite = http.SameSiteLaxMode
+	return sessionManager
 }
 
 func NewServer(config *config.Config, log *slog.Logger, service *service.Tracker, formatter formatter.Formatter) *Server {
 	return &Server{
-		config:    config,
-		log:       log,
-		tracker:   service,
-		formatter: formatter,
+		config:         config,
+		log:            log,
+		tracker:        service,
+		formatter:      formatter,
+		sessionManager: createSessionManager(),
+		attempts:       make(map[string]*Attempt),
 	}
 }
 
@@ -48,7 +66,7 @@ func (s *Server) Start(ctx context.Context) error {
 
 	s.httpServer = &http.Server{
 		Addr:    fmt.Sprintf("%s:%s", s.config.Server.BindAddress, s.config.Server.Port),
-		Handler: corsMiddleware(mux),
+		Handler: s.sessionManager.LoadAndSave(corsMiddleware(mux)),
 	}
 
 	s.log.Info("Server listening on: " + s.httpServer.Addr)
@@ -56,21 +74,6 @@ func (s *Server) Start(ctx context.Context) error {
 		return err
 	}
 	return nil
-}
-
-func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
 }
 
 func (s *Server) Shutdown() error {
