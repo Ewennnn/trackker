@@ -1,9 +1,9 @@
 package formatter
 
 import (
-	"djtracker/internal/model"
 	"encoding/json"
 	"time"
+	"trackker/internal/model"
 )
 
 type trackDTO struct {

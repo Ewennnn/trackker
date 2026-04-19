@@ -2,14 +2,14 @@ package api
 
 import (
 	"context"
-	"djtracker/internal/api/formatter"
-	"djtracker/internal/config"
-	"djtracker/internal/service"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"sync"
 	"time"
+	"trackker/internal/api/formatter"
+	"trackker/internal/config"
+	"trackker/internal/service"
 
 	"github.com/alexedwards/scs/v2"
 )

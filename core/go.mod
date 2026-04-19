@@ -1,4 +1,4 @@
-module djtracker
+module trackker
 
 go 1.25
 

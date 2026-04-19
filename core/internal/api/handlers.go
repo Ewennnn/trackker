@@ -2,10 +2,10 @@ package api
 
 import (
 	"context"
-	"djtracker/internal/model"
-	"djtracker/internal/utils"
 	"net/http"
 	"time"
+	"trackker/internal/model"
+	"trackker/internal/utils"
 )
 
 func (s *Server) LoadIndex() http.HandlerFunc {

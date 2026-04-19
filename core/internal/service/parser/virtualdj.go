@@ -3,8 +3,6 @@ package parser
 import (
 	"bufio"
 	"context"
-	"djtracker/internal/model"
-	"djtracker/internal/utils"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -14,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"trackker/internal/model"
+	"trackker/internal/utils"
 )
 
 var trackPrefix = "#EXTVDJ:"

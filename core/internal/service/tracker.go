@@ -3,12 +3,12 @@ package service
 import (
 	"bufio"
 	"context"
-	"djtracker/internal/config"
-	"djtracker/internal/model"
-	"djtracker/internal/repository"
-	"djtracker/internal/service/parser"
 	"log/slog"
 	"time"
+	"trackker/internal/config"
+	"trackker/internal/model"
+	"trackker/internal/repository"
+	"trackker/internal/service/parser"
 )
 
 type Tracker struct {

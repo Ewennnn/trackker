@@ -1,8 +1,8 @@
 package model
 
 import (
-	"djtracker/internal/utils"
 	"time"
+	"trackker/internal/utils"
 )
 
 type Track struct {

@@ -3,10 +3,10 @@ package parser
 import (
 	"bufio"
 	"context"
-	"djtracker/internal/config"
-	"djtracker/internal/model"
 	"fmt"
 	"log/slog"
+	"trackker/internal/config"
+	"trackker/internal/model"
 )
 
 const (

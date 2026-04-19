@@ -1,10 +1,10 @@
 package formatter
 
 import (
-	"djtracker/internal/config"
-	"djtracker/internal/model"
 	"html/template"
 	"log/slog"
+	"trackker/internal/config"
+	"trackker/internal/model"
 )
 
 type Formatter interface {

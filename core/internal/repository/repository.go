@@ -2,11 +2,11 @@ package repository
 
 import (
 	"database/sql"
-	"djtracker/internal/model"
 	"errors"
 	"fmt"
 	"log/slog"
 	"time"
+	"trackker/internal/model"
 
 	_ "modernc.org/sqlite"
 )

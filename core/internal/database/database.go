@@ -2,10 +2,10 @@ package database
 
 import (
 	"database/sql"
-	"djtracker/internal/config"
-	"djtracker/internal/utils"
 	"os"
 	"path/filepath"
+	"trackker/internal/config"
+	"trackker/internal/utils"
 )
 
 func createDbPath(dbPath string) error {

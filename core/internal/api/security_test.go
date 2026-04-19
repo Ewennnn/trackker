@@ -1,10 +1,10 @@
 package api
 
 import (
-	"djtracker/internal/config"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"trackker/internal/config"
 
 	"github.com/alexedwards/scs/v2"
 )

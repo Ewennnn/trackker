@@ -2,9 +2,9 @@ package formatter
 
 import (
 	"bytes"
-	"djtracker/internal/model"
 	"html/template"
 	"regexp"
+	"trackker/internal/model"
 )
 
 var whitespacesRegex = regexp.MustCompile(`[\r\n]+`)

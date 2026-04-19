@@ -1,10 +1,10 @@
 package config
 
 import (
-	"djtracker/internal/utils"
 	"fmt"
 	"os"
 	"regexp"
+	"trackker/internal/utils"
 
 	"github.com/goccy/go-yaml"
 )

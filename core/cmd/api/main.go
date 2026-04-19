@@ -3,18 +3,18 @@ package main
 import (
 	"context"
 	"database/sql"
-	"djtracker/internal/api"
-	"djtracker/internal/api/formatter"
-	"djtracker/internal/config"
-	"djtracker/internal/database"
-	"djtracker/internal/repository"
-	"djtracker/internal/service"
-	"djtracker/internal/service/parser"
 	"log"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
+	"trackker/internal/api"
+	"trackker/internal/api/formatter"
+	"trackker/internal/config"
+	"trackker/internal/database"
+	"trackker/internal/repository"
+	"trackker/internal/service"
+	"trackker/internal/service/parser"
 )
 
 func main() {
