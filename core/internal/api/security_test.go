@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -24,6 +25,14 @@ func newTestServer() *Server {
 func setupTest() (*Server, http.Handler) {
 	server := newTestServer()
 	return server, server.sessionManager.LoadAndSave(server.checkPinCode())
+}
+
+func setupControlTest() (*Server, http.Handler) {
+	server := newTestServer()
+	mux := http.NewServeMux()
+	mux.Handle("POST /api/pincode/{code}", server.checkPinCode())
+	mux.Handle("GET /api/control/session", server.getSessionStatus())
+	return server, server.sessionManager.LoadAndSave(mux)
 }
 
 func TestCheckPinCode(t *testing.T) {
@@ -120,6 +129,67 @@ func TestCheckPinCode(t *testing.T) {
 
 		if exists {
 			t.Errorf("expected attempts to be reset")
+		}
+	})
+}
+
+func TestSessionStatus(t *testing.T) {
+	type sessionPayload struct {
+		Authenticated bool `json:"authenticated"`
+	}
+
+	t.Run("returns false when not authenticated", func(t *testing.T) {
+		_, handler := setupControlTest()
+
+		req := httptest.NewRequest(http.MethodGet, "/api/control/session", nil)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200 got %d", rec.Code)
+		}
+
+		var payload sessionPayload
+		if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+			t.Fatalf("invalid JSON payload: %v", err)
+		}
+
+		if payload.Authenticated {
+			t.Fatalf("expected authenticated=false")
+		}
+	})
+
+	t.Run("returns true after valid PIN with same session cookie", func(t *testing.T) {
+		_, handler := setupControlTest()
+
+		loginReq := httptest.NewRequest(http.MethodPost, "/api/pincode/123456", nil)
+		loginReq.SetPathValue("code", "123456")
+		loginRec := httptest.NewRecorder()
+		handler.ServeHTTP(loginRec, loginReq)
+
+		if loginRec.Code != http.StatusOK {
+			t.Fatalf("expected login 200 got %d", loginRec.Code)
+		}
+
+		sessionReq := httptest.NewRequest(http.MethodGet, "/api/control/session", nil)
+		for _, cookie := range loginRec.Result().Cookies() {
+			sessionReq.AddCookie(cookie)
+		}
+
+		sessionRec := httptest.NewRecorder()
+		handler.ServeHTTP(sessionRec, sessionReq)
+
+		if sessionRec.Code != http.StatusOK {
+			t.Fatalf("expected session status 200 got %d", sessionRec.Code)
+		}
+
+		var payload sessionPayload
+		if err := json.Unmarshal(sessionRec.Body.Bytes(), &payload); err != nil {
+			t.Fatalf("invalid JSON payload: %v", err)
+		}
+
+		if !payload.Authenticated {
+			t.Fatalf("expected authenticated=true")
 		}
 	})
 }

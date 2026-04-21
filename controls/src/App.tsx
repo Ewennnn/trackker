@@ -1,7 +1,7 @@
-import { Show, createEffect, createMemo, createSignal } from 'solid-js'
+import { Show, createEffect, createSignal, onMount } from 'solid-js'
 import { Dashboard } from './components/Dashboard.tsx'
 import { PinGate } from './components/PinGate.tsx'
-import { getLockoutUntil, hasSessionAccess } from './services/security.ts'
+import { getSessionStatus } from './services/api.ts'
 import './App.css'
 
 type ThemeMode = 'light' | 'dark'
@@ -18,22 +18,30 @@ const getInitialTheme = (): ThemeMode => {
 }
 
 function App() {
-  const [isAuthorized, setIsAuthorized] = createSignal(hasSessionAccess())
-  const [lockoutUntilValue, setLockoutUntilValue] = createSignal(getLockoutUntil())
+  const [isAuthorized, setIsAuthorized] = createSignal(false)
+  const [isCheckingSession, setIsCheckingSession] = createSignal(true)
+  const [sessionError, setSessionError] = createSignal<string | null>(null)
   const [themeMode, setThemeMode] = createSignal<ThemeMode>(getInitialTheme())
 
-  const canAttemptAccess = createMemo(() => {
-    const until = lockoutUntilValue()
-    return until === null || until <= Date.now()
+  const refreshSession = async () => {
+    setSessionError(null)
+    try {
+      const authenticated = await getSessionStatus()
+      setIsAuthorized(authenticated)
+    } catch {
+      setIsAuthorized(false)
+      setSessionError('Impossible de verifier la session avec le backend.')
+    } finally {
+      setIsCheckingSession(false)
+    }
+  }
+
+  onMount(() => {
+    void refreshSession()
   })
 
   const handleAccessGranted = () => {
     setIsAuthorized(true)
-    setLockoutUntilValue(getLockoutUntil())
-  }
-
-  const handleLockoutChanged = () => {
-    setLockoutUntilValue(getLockoutUntil())
   }
 
   const toggleTheme = () => {
@@ -58,8 +66,21 @@ function App() {
         <p>Panneau de supervision et commandes du backend Trackker</p>
       </header>
 
-      <Show when={isAuthorized()} fallback={<PinGate canAttempt={canAttemptAccess()} lockoutUntil={lockoutUntilValue()} onAccessGranted={handleAccessGranted} onLockoutChanged={handleLockoutChanged} />}>
-        <Dashboard />
+      <Show
+        when={!isCheckingSession()}
+        fallback={
+          <section class="panel pin-gate">
+            <h2>Verification de la session...</h2>
+          </section>
+        }
+      >
+        <Show when={isAuthorized()} fallback={<PinGate onAccessGranted={handleAccessGranted} />}>
+          <Dashboard />
+        </Show>
+      </Show>
+
+      <Show when={sessionError()}>
+        {(message) => <p class="error-text">{message()}</p>}
       </Show>
     </main>
   )

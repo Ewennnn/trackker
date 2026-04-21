@@ -28,9 +28,10 @@ type Server struct {
 func createSessionManager() *scs.SessionManager {
 	sessionManager := scs.New()
 	sessionManager.Lifetime = 24 * time.Hour
-	sessionManager.Cookie.Name = "trackker:session_id"
+	sessionManager.Cookie.Name = "trackker_session_id"
 	sessionManager.Cookie.HttpOnly = true
 	sessionManager.Cookie.Path = "/"
+	sessionManager.Cookie.Secure = false
 	sessionManager.Cookie.SameSite = http.SameSiteLaxMode
 	return sessionManager
 }
@@ -58,6 +59,7 @@ func (s *Server) Start(ctx context.Context) error {
 
 	// Controls endpoints
 	mux.Handle("POST /api/pincode/{code}", s.checkPinCode())
+	mux.Handle("GET /api/control/session", s.getSessionStatus())
 
 	// Display endpoints
 	mux.Handle("GET /", s.LoadIndex())

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 )
@@ -51,5 +52,17 @@ func (s *Server) checkPinCode() http.HandlerFunc {
 		s.mu.Unlock()
 
 		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func (s *Server) getSessionStatus() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		authenticated := s.sessionManager.GetBool(r.Context(), "authenticated")
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]bool{
+			"authenticated": authenticated,
+		})
 	}
 }
