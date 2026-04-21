@@ -33,12 +33,14 @@ func (s *Server) checkPinCode() http.HandlerFunc {
 
 			att.FailedAttempts++
 
+			httpStatus := http.StatusUnauthorized
 			if att.FailedAttempts >= 3 {
 				att.BlockedUntil = time.Now().Add(5 * time.Minute)
+				httpStatus = http.StatusTooManyRequests
 			}
 			s.mu.Unlock()
 
-			w.WriteHeader(http.StatusUnauthorized)
+			w.WriteHeader(httpStatus)
 			return
 		}
 

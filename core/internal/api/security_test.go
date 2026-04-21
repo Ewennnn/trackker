@@ -68,8 +68,10 @@ func TestCheckPinCode(t *testing.T) {
 			rec := httptest.NewRecorder()
 			handler.ServeHTTP(rec, req)
 
-			if rec.Code != http.StatusUnauthorized {
+			if i < 2 && rec.Code != http.StatusUnauthorized {
 				t.Fatalf("attempt %d expected 401 got %d", i, rec.Code)
+			} else if i == 2 && rec.Code != http.StatusTooManyRequests {
+				t.Fatalf("attempt %d expected 429 got %d", i, rec.Code)
 			}
 		}
 
