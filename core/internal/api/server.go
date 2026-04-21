@@ -60,6 +60,7 @@ func (s *Server) Start(ctx context.Context) error {
 	// Controls endpoints
 	mux.Handle("POST /api/pincode/{code}", s.checkPinCode())
 	mux.Handle("GET /api/control/session", s.getSessionStatus())
+	mux.Handle("GET /api/control/supervision/events", s.authMiddleware(s.ListenForControlSupervisionSSE(ctx)))
 
 	// Display endpoints
 	mux.Handle("GET /", s.LoadIndex())

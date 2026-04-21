@@ -1,8 +1,10 @@
 package utils
 
 import (
+	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/dhowden/tag"
@@ -58,4 +60,13 @@ func GetTrackCover(path string) *tag.Picture {
 	}
 
 	return metadata.Picture()
+}
+
+func GetCoverURL(r *http.Request, trackID int64) string {
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+
+	return fmt.Sprintf("%s://%s/cover/%d", scheme, r.Host, trackID)
 }

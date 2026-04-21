@@ -21,6 +21,7 @@ function App() {
   const [isAuthorized, setIsAuthorized] = createSignal(false)
   const [isCheckingSession, setIsCheckingSession] = createSignal(true)
   const [sessionError, setSessionError] = createSignal<string | null>(null)
+  const [kickNotice, setKickNotice] = createSignal<string | null>(null)
   const [themeMode, setThemeMode] = createSignal<ThemeMode>(getInitialTheme())
 
   const refreshSession = async () => {
@@ -41,7 +42,17 @@ function App() {
   })
 
   const handleAccessGranted = () => {
+    setKickNotice(null)
     setIsAuthorized(true)
+  }
+
+  const handleConnectionClosed = () => {
+    setKickNotice('Trackker Core n\'est plus accessible.')
+    setIsAuthorized(false)
+  }
+
+  const dismissKickNotice = () => {
+    setKickNotice(null)
   }
 
   const toggleTheme = () => {
@@ -75,12 +86,23 @@ function App() {
         }
       >
         <Show when={isAuthorized()} fallback={<PinGate onAccessGranted={handleAccessGranted} />}>
-          <Dashboard />
+          <Dashboard onConnectionClosed={handleConnectionClosed} />
         </Show>
       </Show>
 
       <Show when={sessionError()}>
         {(message) => <p class="error-text">{message()}</p>}
+      </Show>
+
+      <Show when={kickNotice()}>
+        {(message) => (
+          <aside class="toast toast-error" role="status" aria-live="polite">
+            <p>{message()}</p>
+            <button class="toast-close" type="button" onClick={dismissKickNotice} aria-label="Fermer la notification">
+              ×
+            </button>
+          </aside>
+        )}
       </Show>
     </main>
   )

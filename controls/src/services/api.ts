@@ -110,6 +110,25 @@ export const connectSupervisionStream = (handlers: SupervisionHandlers): (() => 
   const source = new EventSource(toUrl('/api/control/supervision/events'), {
     withCredentials: true,
   })
+  let lastStatus: SupervisionStatus = {
+    httpOnline: false,
+    connectedClients: 0,
+    currentTrack: null,
+  }
+
+  const emitNextStatus = (payload: SupervisionPayload) => {
+    lastStatus = {
+      ...lastStatus,
+      ...toSupervisionStatus({
+        httpOnline: payload.httpOnline ?? lastStatus.httpOnline,
+        connectedClients: payload.connectedClients ?? lastStatus.connectedClients,
+        currentTrack: payload.currentTrack !== undefined ? payload.currentTrack : lastStatus.currentTrack,
+      }),
+    }
+    handlers.onStatus(lastStatus)
+  }
+
+  const parsePayload = (raw: string): SupervisionPayload => JSON.parse(raw) as SupervisionPayload
 
   source.onopen = () => {
     handlers.onOpen?.()
@@ -117,12 +136,35 @@ export const connectSupervisionStream = (handlers: SupervisionHandlers): (() => 
 
   source.onmessage = (event) => {
     try {
-      const payload = JSON.parse(event.data) as SupervisionPayload
-      handlers.onStatus(toSupervisionStatus(payload))
+      emitNextStatus(parsePayload(event.data))
     } catch {
       handlers.onError?.(new Error('Payload SSE supervision invalide.'))
     }
   }
+
+  source.addEventListener('http_online', (event) => {
+    try {
+      emitNextStatus(parsePayload((event as MessageEvent).data))
+    } catch {
+      handlers.onError?.(new Error('Payload SSE http_online invalide.'))
+    }
+  })
+
+  source.addEventListener('connected_clients', (event) => {
+    try {
+      emitNextStatus(parsePayload((event as MessageEvent).data))
+    } catch {
+      handlers.onError?.(new Error('Payload SSE connected_clients invalide.'))
+    }
+  })
+
+  source.addEventListener('current_track', (event) => {
+    try {
+      emitNextStatus(parsePayload((event as MessageEvent).data))
+    } catch {
+      handlers.onError?.(new Error('Payload SSE current_track invalide.'))
+    }
+  })
 
   source.onerror = () => {
     handlers.onError?.(new Error('Connexion SSE supervision interrompue.'))
@@ -139,7 +181,6 @@ export const sendControlAction = async (action: string): Promise<void> => {
   })
 }
 
-// TODO(back): implementer GET /api/control/supervision/events (SSE) pour exposer httpOnline, connectedClients et currentTrack
 // TODO(back): implementer POST /api/control/actions/{action} pour blackout/freeze_tracking
 
 

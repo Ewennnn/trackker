@@ -30,8 +30,11 @@ const actionList = [
     color: '#ffffff',
   },
 ] as const
+type DashboardProps = {
+  onConnectionClosed: () => void
+}
 
-export const Dashboard = () => {
+export const Dashboard = (props: DashboardProps) => {
   const [status, setStatus] = createSignal<SupervisionStatus>(DEFAULT_STATUS)
   const [isSseConnected, setIsSseConnected] = createSignal(false)
   const [isPreviewOpen, setIsPreviewOpen] = createSignal(true)
@@ -42,9 +45,13 @@ export const Dashboard = () => {
   let previewResizeObserver: ResizeObserver | null = null
 
   let stopSupervision: (() => void) | null = null
+  let hasNotifiedConnectionClosed = false
 
   const startSupervision = () => {
     stopSupervision?.()
+    setIsSseConnected(false)
+    hasNotifiedConnectionClosed = false
+
     stopSupervision = connectSupervisionStream({
       onStatus: (nextStatus: any) => {
         setStatus(nextStatus)
@@ -56,7 +63,16 @@ export const Dashboard = () => {
       onError: (error: Error) => {
         console.error(error)
         setIsSseConnected(false)
-        setInfoMessage('Connexion supervision SSE interrompue. Reconnexion en cours...')
+
+        if (hasNotifiedConnectionClosed) {
+          return
+        }
+
+        hasNotifiedConnectionClosed = true
+        setInfoMessage('Connexion supervision SSE interrompue.')
+        stopSupervision?.()
+        stopSupervision = null
+        props.onConnectionClosed()
       },
     })
   }

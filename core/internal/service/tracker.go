@@ -40,11 +40,15 @@ func (t *Tracker) SubscribeForTracks() (chan *model.Track, func()) {
 	return t.trackBroadcaster.Subscribe(1)
 }
 
+func (t *Tracker) SubscribeConnectedClients() (chan int, func()) {
+	return t.trackBroadcaster.SubscribeClientCount(1)
+}
+
 // GetCurrentTrack Récupère la track actuelle et l'envoie dans le channel
 func (t *Tracker) GetCurrentTrack() *model.Track {
 	track, err := t.repo.FindLastTrack()
 	if err != nil {
-		t.log.Error("Failed to retrieve current track", err)
+		t.log.Error("Failed to retrieve current track", "err", err)
 		return nil
 	}
 
