@@ -65,11 +65,15 @@ func (t *Tracker) GetCurrentTrack() *model.Track {
 	return track
 }
 
+// StartTracking Démarre le tracking des tracks, en supervisant la lecture de l'historique et en écoutant les tracks en direct pour alimenter les channels des clients
 func (t *Tracker) StartTracking(ctx context.Context) {
 	go t.superviseHistoryReader(ctx)
 	go t.listenHistory(ctx)
 }
 
+// superviseHistoryReader supervise la lecture de l'historique des tracks.
+// En cas de crash du lecteur, il attend deux secondes avant de le relancer.
+// Le lecteur est arrêté lorsque le contexte est annulé.
 func (t *Tracker) superviseHistoryReader(ctx context.Context) {
 	for {
 		select {
@@ -93,6 +97,9 @@ func (t *Tracker) superviseHistoryReader(ctx context.Context) {
 	}
 }
 
+// handleHistoryReader récupère la dernière track enregistrée puis les tracks passées jusqu'à la dernière track enregistrée.
+// Les tracks passées et non enregistrées sont sauvegardées. Si la dernière track passée n'est pas finie, elle est envoyée dans le channel des tracks.
+// Ensuite le suivi en direct des tracks est lancé.
 func (t *Tracker) handleHistoryReader(ctx context.Context, reader *bufio.Reader) error {
 	lastSavedTrack, _ := t.repo.FindLastTrack()
 
@@ -108,17 +115,23 @@ func (t *Tracker) handleHistoryReader(ctx context.Context, reader *bufio.Reader)
 	return t.parser.StartHistoryTracking(ctx, reader, t.liveTrackList)
 }
 
+// processTracks traites toutes les tracks passées non enregistrées, en sauvegardant dans l'historique
+// les tracks finies et en envoyant dans le channel la track en cours si elle n'est pas terminée
 func (t *Tracker) processTracks(tracks []*model.Track) {
 	t.saveHistoryTracks(tracks[:len(tracks)-1])
 	t.handleLastTrack(tracks[len(tracks)-1])
 }
 
+// saveHistoryTracks sauvegarde toutes les tracks
 func (t *Tracker) saveHistoryTracks(tracks []*model.Track) {
 	for _, track := range tracks {
 		t.repo.AddTrackToHistory(track)
 	}
 }
 
+// handleLastTrack vérifie si la dernière track est finie ou non.
+// Si elle est finie, elle est sauvegardée dans l'historique.
+// Sinon, elle est envoyée dans le channel des tracks en direct et sera sauvegardée dans listenHistory
 func (t *Tracker) handleLastTrack(track *model.Track) {
 	if track.IsFinished(time.Now()) {
 		t.repo.AddTrackToHistory(track)
