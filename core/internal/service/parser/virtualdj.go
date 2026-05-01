@@ -61,15 +61,17 @@ func (p *VirtualDJParser) getHistoryTracksPath() (string, error) {
 	}
 
 	now := time.Now()
-	today := now.Truncate(24 * time.Hour)
-	yesterday := today.Add(-24 * time.Hour)
+	loc := now.Location()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+	yesterday := today.AddDate(0, 0, -1)
+
 	for _, file := range files {
 		if file.IsDir() || filepath.Ext(file.Name()) != ".m3u" || len(file.Name()) < 10 {
 			continue
 		}
 
 		dateStr := file.Name()[:10]
-		fileDate, err := time.Parse("2006-01-02", dateStr)
+		fileDate, err := time.ParseInLocation("2006-01-02", dateStr, loc)
 		if err != nil {
 			continue
 		}
