@@ -3,11 +3,13 @@ import {
   PREVIEW_URL,
   connectSupervisionStream,
   getStreamDeckButtons,
+  getLocalIPs,
   startDisplayServer,
   stopDisplayServer,
   toggleStreamDeckButton,
   type StreamDeckButton,
   type SupervisionStatus,
+  type TrackkerIPs,
 } from '../services/api.ts'
 import { ControlButton } from './ControlButton.tsx'
 
@@ -50,6 +52,9 @@ export const Dashboard = (props: DashboardProps) => {
   const [streamDeckButtons, setStreamDeckButtons] = createSignal<StreamDeckButton[]>([])
   const [isLoadingButtons, setIsLoadingButtons] = createSignal(false)
   const [pendingButtons, setPendingButtons] = createSignal(new Set<number>())
+  const [localIPs, setLocalIPs] = createSignal<TrackkerIPs | null>(null)
+  const [isLoadingIPs, setIsLoadingIPs] = createSignal(false)
+  const [isIPsSectionOpen, setIsIPsSectionOpen] = createSignal(false)
   const currentTrack = () => status().currentTrack
   const sortedButtons = () => [...streamDeckButtons()].sort((a, b) => a.position - b.position)
   let previewShellRef: HTMLDivElement | undefined
@@ -68,6 +73,19 @@ export const Dashboard = (props: DashboardProps) => {
       setInfoMessage('Impossible de charger le streamdeck.')
     } finally {
       setIsLoadingButtons(false)
+    }
+  }
+
+  const fetchLocalIPs = async () => {
+    setIsLoadingIPs(true)
+    try {
+      const ips = await getLocalIPs()
+      setLocalIPs(ips)
+    } catch (error) {
+      console.error(error)
+      setInfoMessage('Impossible de charger les IPs locales.')
+    } finally {
+      setIsLoadingIPs(false)
     }
   }
 
@@ -188,6 +206,7 @@ export const Dashboard = (props: DashboardProps) => {
   onMount(() => {
     startSupervision()
     void fetchStreamDeck()
+    void fetchLocalIPs()
 
     // Force scale recalculation when preview is reopened
     createEffect(() => {
@@ -223,6 +242,61 @@ export const Dashboard = (props: DashboardProps) => {
 
   return (
     <section class="dashboard-grid">
+      <article class="panel ips-panel">
+        <div class="panel-head">
+          <h2>IPs d'accès</h2>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Show when={isIPsSectionOpen()}>
+              <button class="ghost-button" onClick={() => void fetchLocalIPs()}>
+                Recharger
+              </button>
+            </Show>
+            <button
+                class="ghost-button"
+                onClick={() => setIsIPsSectionOpen(open => !open)}
+            >
+              {isIPsSectionOpen() ? 'Replier' : 'Déplier'}
+            </button>
+          </div>
+        </div>
+        <Show when={isIPsSectionOpen()}>
+          <Show when={!isLoadingIPs()} fallback={<p class="meta-text">Chargement des IPs...</p>}>
+            <Show when={localIPs() !== null} fallback={<p class="meta-text">Impossible de charger les IPs.</p>}>
+              <div class="ips-section">
+                <div class="ips-group">
+                  <h3>Display</h3>
+                  <div class="ips-list">
+                    {localIPs()?.display.map((ip) => (
+                        <button
+                            class="ip-button"
+                            onClick={() => window.open(ip, '_blank')}
+                            title={`Ouvrir ${ip}`}
+                        >
+                          {ip}
+                        </button>
+                    ))}
+                  </div>
+                </div>
+                <div class="ips-group">
+                  <h3>Controls</h3>
+                  <div class="ips-list">
+                    {localIPs()?.controls.map((ip) => (
+                        <button
+                            class="ip-button"
+                            onClick={() => window.open(ip, '_blank')}
+                            title={`Ouvrir ${ip}`}
+                        >
+                          {ip}
+                        </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </Show>
+          </Show>
+        </Show>
+      </article>
+
       <article class="panel">
         <div class="panel-head">
           <h2>Supervision</h2>
@@ -250,11 +324,11 @@ export const Dashboard = (props: DashboardProps) => {
             </strong>
           </div>
           <div class="status-item">
-            <span>Clients connectes (display)</span>
+            <span>Clients connectes au Display</span>
             <strong>{status().connectedClients.display}</strong>
           </div>
           <div class="status-item">
-            <span>Clients connectes (controls)</span>
+            <span>Clients connectes au Controls</span>
             <strong>{status().connectedClients.controls}</strong>
           </div>
           <div class="status-item">
@@ -292,7 +366,6 @@ export const Dashboard = (props: DashboardProps) => {
             Recharger
           </button>
         </div>
-        <p>Commandes admin configurees dans le backend.</p>
         <Show when={!isLoadingButtons()} fallback={<p class="meta-text">Chargement des boutons...</p>}>
           <Show when={sortedButtons().length > 0} fallback={<p class="meta-text">Aucun bouton configure.</p>}>
             <div class="deck-grid" style={{ '--deck-columns': String(STREAMDECK_COLUMNS) }}>

@@ -73,8 +73,11 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.Handle("POST /api/control/display/start", s.authMiddleware(s.RunDisplayServer()))
 	mux.Handle("POST /api/control/display/stop", s.authMiddleware(s.StopDisplayServer()))
 
+	// Data
+	mux.Handle("GET /api/control/ip", s.authMiddleware(api.JsonResponseWrapper(s.GetLocalIP())))
+
 	s.httpServer = &http.Server{
-		Addr:    fmt.Sprintf("%s:%s", "localhost", "8080"),
+		Addr:    fmt.Sprintf("%s:%s", "0.0.0.0", "8080"),
 		Handler: s.sessionManager.LoadAndSave(corsMiddleware(mux)),
 	}
 

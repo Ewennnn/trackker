@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -174,4 +175,83 @@ func (s *Server) sendSupervisionEvent(sseW *api.Sse, event string, payload any) 
 	if err := sseW.SendEvent(event, string(encoded)); err != nil {
 		s.log.Error("Failed to send supervision event", "err", err)
 	}
+}
+
+type TrackkerIPsResponse struct {
+	Display  []string `json:"display"`
+	Controls []string `json:"controls"`
+}
+
+func (s *Server) GetLocalIP() api.JsonResponseHandlerFunc {
+	return func(r *http.Request) (any, int, error) {
+		const (
+			displayPort  = 9000
+			controlsPort = 8080
+		)
+
+		ips, err := getLocalIPv4s()
+		if err != nil {
+			return nil, http.StatusInternalServerError, err
+		}
+
+		return TrackkerIPsResponse{
+			Display:  buildURLs(ips, displayPort),
+			Controls: buildURLs(ips, controlsPort),
+		}, http.StatusOK, nil
+	}
+}
+
+// getLocalIPv4s récupère toutes les IPv4 uniques (inclut localhost)
+func getLocalIPv4s() ([]string, error) {
+	ipSet := make(map[string]struct{})
+
+	// Toujours inclure localhost
+	ipSet["localhost"] = struct{}{}
+
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get network interfaces: %w", err)
+	}
+
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+
+		for _, addr := range addrs {
+			ipnet, ok := addr.(*net.IPNet)
+			if !ok {
+				continue
+			}
+
+			ip := ipnet.IP.To4()
+			if ip == nil {
+				continue
+			}
+
+			ipSet[ip.String()] = struct{}{}
+		}
+	}
+
+	// Convert map → slice
+	ips := make([]string, 0, len(ipSet))
+	for ip := range ipSet {
+		ips = append(ips, ip)
+	}
+
+	return ips, nil
+}
+
+// buildURLs construit les URLs pour un port donné
+func buildURLs(ips []string, port int) []string {
+	urls := make([]string, 0, len(ips))
+	for _, ip := range ips {
+		urls = append(urls, fmt.Sprintf("http://%s:%d", ip, port))
+	}
+	return urls
 }

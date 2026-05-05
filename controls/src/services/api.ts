@@ -18,6 +18,11 @@ export type StreamDeckButton = {
   isDeletable: boolean
 }
 
+export type TrackkerIPs = {
+  display: string[]
+  controls: string[]
+}
+
 export type SupervisionStatus = {
   displayServerOnline: boolean
   connectedClients: {
@@ -259,3 +264,10 @@ export const stopDisplayServer = async (): Promise<void> => {
     method: 'POST',
   })
 }
+
+export const getLocalIPs = async (): Promise<TrackkerIPs> => {
+  return fetchJson('/api/control/ip', {
+    method: 'GET',
+  })
+}
+

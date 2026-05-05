@@ -43,7 +43,7 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.Handle("GET /events", s.ListenDisplayEventsSSE())
 
 	s.httpServer = &http.Server{
-		Addr:    fmt.Sprintf("%s:%s", "localhost", "9000"),
+		Addr:    fmt.Sprintf("%s:%s", "0.0.0.0", "9000"),
 		Handler: mux,
 		BaseContext: func(listener net.Listener) context.Context {
 			return ctx
