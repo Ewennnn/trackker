@@ -102,7 +102,7 @@ func (p *VirtualDJParser) WithHistoryTrackReader(fn func(reader *bufio.Reader) e
 }
 
 // StartHistoryTracking lit le fichier d'historique et convertit les informations dans un format normalisé au programme.
-func (p *VirtualDJParser) StartHistoryTracking(ctx context.Context, reader *bufio.Reader, ch chan *model.Track) error {
+func (p *VirtualDJParser) StartHistoryTracking(ctx context.Context, reader *bufio.Reader, out chan<- *model.Track) error {
 	for {
 		select {
 		case <-ctx.Done():
@@ -141,7 +141,7 @@ func (p *VirtualDJParser) StartHistoryTracking(ctx context.Context, reader *bufi
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
-			case ch <- track:
+			case out <- track:
 			}
 		}
 	}

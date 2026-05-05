@@ -20,7 +20,7 @@ type Parser interface {
 
 	// StartHistoryTracking démarre le suivi de l'historique des tracks,
 	// en lisant les données à partir du reader et en envoyant les tracks trouvés dans le channel
-	StartHistoryTracking(ctx context.Context, reader *bufio.Reader, ch chan *model.Track) error
+	StartHistoryTracking(ctx context.Context, reader *bufio.Reader, ch chan<- *model.Track) error
 
 	// WithHistoryTrackReader ouvre le fichier d'historique des tracks et fournit un bufio.Reader
 	// à la fonction passée en argument pour lire les données.
