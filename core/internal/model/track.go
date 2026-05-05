@@ -1,6 +1,7 @@
 package model
 
 import (
+	"net/http"
 	"time"
 	"trackker/internal/utils"
 )
@@ -29,4 +30,30 @@ func (t *Track) Equals(other *Track) bool {
 		t.Name == other.Name &&
 		t.Path == other.Path &&
 		t.PlayAt == other.PlayAt
+}
+
+type SimpleTrackResponse struct {
+	Title    string  `json:"title"`
+	Artist   string  `json:"artist"`
+	FilePath string  `json:"filePath"`
+	CoverURL *string `json:"coverUrl"`
+}
+
+func BuildSupervisionTrackPayload(r *http.Request, track *Track) *SimpleTrackResponse {
+	if track == nil {
+		return nil
+	}
+
+	artist := ""
+	if track.Artist != nil {
+		artist = *track.Artist
+	}
+
+	coverURL := utils.GetCoverURL(r, track.ID)
+	return &SimpleTrackResponse{
+		Title:    track.Name,
+		Artist:   artist,
+		FilePath: track.Path,
+		CoverURL: &coverURL,
+	}
 }

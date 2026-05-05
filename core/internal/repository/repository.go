@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 	"trackker/internal/model"
+	"trackker/internal/utils"
 
 	_ "modernc.org/sqlite"
 )
@@ -22,6 +23,109 @@ func New(log *slog.Logger, db *sql.DB) *Repository {
 		log: log,
 		db:  db,
 	}
+}
+
+func (r *Repository) GetAllButtons() ([]*model.Button, error) {
+	rows, err := r.db.Query(`
+		SELECT id, label, text_color, background_color, icon, display_mode, position, is_deletable 
+		FROM buttons
+	`)
+
+	if err != nil {
+		return nil, err
+	}
+	defer utils.SafeClose(rows)
+
+	var buttons []*model.Button
+	for rows.Next() {
+		var button model.Button
+		var icon sql.NullString
+
+		err := rows.Scan(
+			&button.ID,
+			&button.Label,
+			&button.TextColor,
+			&button.BackgroundColor,
+			&icon,
+			&button.DisplayMode,
+			&button.Position,
+			&button.IsDeletable,
+		)
+
+		if err != nil {
+			r.log.Error("Error scanning button row", "error", err)
+			continue
+		}
+
+		if icon.Valid {
+			button.Icon = &icon.String
+		}
+
+		buttons = append(buttons, &button)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return buttons, nil
+}
+
+func (r *Repository) GetButtonById(buttonID int64) (*model.Button, error) {
+	row := r.db.QueryRow(`
+		SELECT id, label, text_color, background_color, icon, display_mode, position, is_deletable 
+		FROM buttons
+		WHERE id = ?
+	`, buttonID)
+
+	if row.Err() != nil {
+		return nil, row.Err()
+	}
+
+	var button model.Button
+	var icon sql.NullString
+
+	err := row.Scan(
+		&button.ID,
+		&button.Label,
+		&button.TextColor,
+		&button.BackgroundColor,
+		&icon,
+		&button.DisplayMode,
+		&button.Position,
+		&button.IsDeletable,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if icon.Valid {
+		button.Icon = &icon.String
+	}
+
+	return &button, nil
+}
+
+func (r *Repository) SaveNewButton(button *model.Button) error {
+	res, err := r.db.Exec(`
+		INSERT INTO buttons (label, text_color, background_color, icon, display_mode, position, is_deletable) VALUES (?, ?, ?, ?, ?, ?, ?)
+	`, button.Label, button.TextColor, button.BackgroundColor, button.Icon, button.DisplayMode, button.Position, button.IsDeletable)
+
+	if err != nil {
+		r.log.Error("Failed to insert new button", "error", err, "button", fmt.Sprintf("%#v", button))
+		return err
+	}
+	r.log.Info("New button successfully saved", "button", fmt.Sprintf("%#v", button))
+
+	id, err := res.LastInsertId()
+	if err != nil {
+		r.log.Error("Failed to retrieve generated ID for new button", "error", err, "button", fmt.Sprintf("%#v", button))
+		return err
+	}
+	button.ID = id
+
+	return nil
 }
 
 func (r *Repository) PrepareEvent() error {

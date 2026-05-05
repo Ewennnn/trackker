@@ -1,22 +1,22 @@
-package api
+package controls
 
 import (
 	"encoding/json"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"trackker/internal/config"
 
 	"github.com/alexedwards/scs/v2"
 )
 
 func newTestServer() *Server {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
 	return &Server{
-		config: &config.Config{
-			Control: config.ControlConfig{
-				PinCode: "123456",
-			},
-		},
+		pinCode:        "123456",
+		log:            logger,
 		sessionManager: scs.New(),
 		attempts:       make(map[string]*Attempt),
 	}
@@ -193,3 +193,92 @@ func TestSessionStatus(t *testing.T) {
 		}
 	})
 }
+
+//func TestControlActions(t *testing.T) {
+//	server := newTestServer()
+//	mux := http.NewServeMux()
+//	mux.Handle("POST /api/pincode/{code}", server.checkPinCode())
+//	mux.Handle("POST /api/control/actions/{action}", server.authMiddleware(server.handleControlAction()))
+//	handler := server.sessionManager.LoadAndSave(mux)
+//
+//	loginReq := httptest.NewRequest(http.MethodPost, "/api/pincode/123456", nil)
+//	loginReq.SetPathValue("code", "123456")
+//	loginRec := httptest.NewRecorder()
+//	handler.ServeHTTP(loginRec, loginReq)
+//
+//	if loginRec.Code != http.StatusOK {
+//		t.Fatalf("expected login 200 got %d", loginRec.Code)
+//	}
+//
+//	buildActionRequest := func(action string) *http.Request {
+//		req := httptest.NewRequest(http.MethodPost, "/api/control/actions/"+action, nil)
+//		req.SetPathValue("action", action)
+//		for _, cookie := range loginRec.Result().Cookies() {
+//			req.AddCookie(cookie)
+//		}
+//		return req
+//	}
+
+//t.Run("blackout toggles on then off", func(t *testing.T) {
+//	rec1 := httptest.NewRecorder()
+//	handler.ServeHTTP(rec1, buildActionRequest("blackout"))
+//	if rec1.Code != http.StatusOK {
+//		t.Fatalf("expected 200 got %d", rec1.Code)
+//	}
+//
+//	var payload1 struct {
+//		Mode DisplayMode `json:"mode"`
+//	}
+//	if err := json.Unmarshal(rec1.Body.Bytes(), &payload1); err != nil {
+//		t.Fatalf("invalid payload: %v", err)
+//	}
+//	if payload1.Mode != DisplayModeBlackout {
+//		t.Fatalf("expected mode blackout got %s", payload1.Mode)
+//	}
+//
+//	rec2 := httptest.NewRecorder()
+//	handler.ServeHTTP(rec2, buildActionRequest("blackout"))
+//	if rec2.Code != http.StatusOK {
+//		t.Fatalf("expected 200 got %d", rec2.Code)
+//	}
+//
+//	var payload2 struct {
+//		Mode DisplayMode `json:"mode"`
+//	}
+//	if err := json.Unmarshal(rec2.Body.Bytes(), &payload2); err != nil {
+//		t.Fatalf("invalid payload: %v", err)
+//	}
+//	if payload2.Mode != DisplayModeLive {
+//		t.Fatalf("expected mode live got %s", payload2.Mode)
+//	}
+//})
+//
+//t.Run("freeze action sets freeze mode", func(t *testing.T) {
+//	rec := httptest.NewRecorder()
+//	handler.ServeHTTP(rec, buildActionRequest("freeze_tracking"))
+//	if rec.Code != http.StatusOK {
+//		t.Fatalf("expected 200 got %d", rec.Code)
+//	}
+//
+//	var payload struct {
+//		Mode DisplayMode `json:"mode"`
+//	}
+//	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+//		t.Fatalf("invalid payload: %v", err)
+//	}
+//	if payload.Mode != DisplayModeFreezeTracking {
+//		t.Fatalf("expected mode freeze_tracking got %s", payload.Mode)
+//	}
+//})
+//
+//t.Run("unauthenticated action request is rejected", func(t *testing.T) {
+//	req := httptest.NewRequest(http.MethodPost, "/api/control/actions/blackout", nil)
+//	req.SetPathValue("action", "blackout")
+//	rec := httptest.NewRecorder()
+//	handler.ServeHTTP(rec, req)
+//
+//	if rec.Code != http.StatusUnauthorized {
+//		t.Fatalf("expected 401 got %d", rec.Code)
+//	}
+//})
+//}

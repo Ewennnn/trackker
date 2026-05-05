@@ -1,4 +1,4 @@
-package api
+package controls
 
 import (
 	"encoding/json"
@@ -25,7 +25,7 @@ func (s *Server) checkPinCode() http.HandlerFunc {
 			return
 		}
 
-		if code != s.config.Control.PinCode {
+		if code != s.pinCode {
 			s.mu.Lock()
 			if att == nil {
 				att = &Attempt{}

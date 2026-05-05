@@ -3,7 +3,9 @@ package service
 import (
 	"bufio"
 	"context"
+	"errors"
 	"log/slog"
+	"sync"
 	"time"
 	"trackker/internal/config"
 	"trackker/internal/model"
@@ -12,9 +14,10 @@ import (
 )
 
 type Tracker struct {
-	log    *slog.Logger
-	config *config.Config
-	repo   *repository.Repository
+	log      *slog.Logger
+	config   *config.Config
+	controls *Controls
+	repo     *repository.Repository
 
 	parser        parser.Parser
 	liveTrackList chan *model.Track
@@ -22,11 +25,12 @@ type Tracker struct {
 	trackBroadcaster *Broadcaster[*model.Track]
 }
 
-func NewTracker(log *slog.Logger, config *config.Config, repo *repository.Repository, parser parser.Parser) *Tracker {
+func NewTracker(log *slog.Logger, config *config.Config, controls *Controls, repo *repository.Repository, parser parser.Parser) *Tracker {
 	return &Tracker{
-		log:    log,
-		config: config,
-		repo:   repo,
+		log:      log,
+		config:   config,
+		controls: controls,
+		repo:     repo,
 
 		parser:        parser,
 		liveTrackList: make(chan *model.Track, 1),
@@ -66,9 +70,16 @@ func (t *Tracker) GetCurrentTrack() *model.Track {
 }
 
 // StartTracking Démarre le tracking des tracks, en supervisant la lecture de l'historique et en écoutant les tracks en direct pour alimenter les channels des clients
-func (t *Tracker) StartTracking(ctx context.Context) {
-	go t.superviseHistoryReader(ctx)
-	go t.listenHistory(ctx)
+func (t *Tracker) StartTracking(ctx context.Context, wg *sync.WaitGroup) {
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		t.superviseHistoryReader(ctx)
+	}()
+	go func() {
+		defer wg.Done()
+		t.listenHistory(ctx)
+	}()
 }
 
 // superviseHistoryReader supervise la lecture de l'historique des tracks.
@@ -85,7 +96,7 @@ func (t *Tracker) superviseHistoryReader(ctx context.Context) {
 				return t.handleHistoryReader(ctx, reader)
 			})
 
-			if err != nil {
+			if err != nil && !errors.Is(err, context.Canceled) {
 				t.log.Error("history reader crashed", "err", err)
 				select {
 				case <-ctx.Done():

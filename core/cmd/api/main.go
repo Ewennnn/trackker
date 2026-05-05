@@ -2,19 +2,12 @@ package main
 
 import (
 	"context"
-	"database/sql"
-	"log"
 	"log/slog"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
-	"trackker/internal/api"
-	"trackker/internal/api/formatter"
-	"trackker/internal/config"
-	"trackker/internal/database"
-	"trackker/internal/repository"
-	"trackker/internal/service"
-	"trackker/internal/service/parser"
+	"trackker/internal/app"
 )
 
 func main() {
@@ -23,65 +16,35 @@ func main() {
 	})
 	logger := slog.New(handler)
 
-	conf, err := config.New()
-	if err != nil {
-		log.Fatal(err)
-	}
-	if err := conf.Check(); err != nil {
-		log.Fatal(err)
-	}
+	appCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	tracksParser, err := parser.GetParser(conf, logger)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if err := tracksParser.CheckState(); err != nil {
-		log.Fatal(err)
-	}
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		waitForSignals(appCtx, cancel, logger)
+	}()
 
-	sseFormatter, err := formatter.NewFormatter(conf, logger)
-	if err != nil {
-		log.Fatal(err)
+	trackker := app.NewApp(logger)
+	if err := trackker.Start(appCtx, &wg); err != nil {
+		logger.Error("App stopped with error", "err", err)
+		cancel()
 	}
 
-	err = database.UseDb(conf, func(db *sql.DB) error {
-		repo := repository.New(logger, db)
-		if err := repo.PrepareEvent(); err != nil {
-			return err
-		}
-
-		tracker := service.NewTracker(logger, conf, repo, tracksParser)
-
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		tracker.StartTracking(ctx)
-
-		server := api.NewServer(conf, logger, tracker, sseFormatter)
-		serverError := make(chan error, 1)
-		go func() {
-			serverError <- server.Start(ctx)
-		}()
-
-		return listenForSignals(serverError, func() error {
-			logger.Info("Signal received to close the app")
-			cancel()
-			return server.Shutdown()
-		})
-	})
-
-	if err != nil {
-		log.Panicln(err)
-	}
+	wg.Wait()
 }
 
-func listenForSignals(serverError chan error, callback func() error) error {
+func waitForSignals(ctx context.Context, cancel context.CancelFunc, logger *slog.Logger) {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(sigChan)
 
 	select {
-	case <-serverError:
-		return callback()
-	case <-sigChan:
-		return callback()
+	case sig := <-sigChan:
+		logger.Info("Signal received to close the app", "signal", sig)
+		cancel()
+	case <-ctx.Done():
+		return
 	}
 }
