@@ -1,4 +1,4 @@
-import { Show, createSignal, onCleanup, onMount } from 'solid-js'
+import { Show, createSignal, createEffect, onCleanup, onMount } from 'solid-js'
 import {
   PREVIEW_URL,
   connectSupervisionStream,
@@ -179,6 +179,12 @@ export const Dashboard = (props: DashboardProps) => {
     setPreviewScale(Math.min(widthRatio, heightRatio))
   }
 
+  const togglePreview = () => {
+    setIsPreviewOpen((open) => {
+      return !open
+    })
+  }
+
   onMount(() => {
     startSupervision()
     void fetchStreamDeck()
@@ -190,6 +196,17 @@ export const Dashboard = (props: DashboardProps) => {
       previewResizeObserver.observe(previewShellRef)
       updatePreviewScale()
     }
+
+    // Force scale recalculation when preview is reopened
+    createEffect(() => {
+      if (isPreviewOpen()) {
+        // Use setTimeout to ensure DOM has been updated
+        const timeoutId = setTimeout(() => {
+          updatePreviewScale()
+        }, 0)
+        onCleanup(() => clearTimeout(timeoutId))
+      }
+    })
 
     onCleanup(() => {
       stopSupervision?.()
@@ -294,7 +311,7 @@ export const Dashboard = (props: DashboardProps) => {
       <article class="panel preview-panel">
         <div class="panel-head">
           <h2>Retour diffusion</h2>
-          <button class="ghost-button" onClick={() => setIsPreviewOpen((open) => !open)}>
+          <button class="ghost-button" onClick={() => togglePreview()}>
             {isPreviewOpen() ? 'Fermer' : 'Ouvrir'}
           </button>
         </div>
