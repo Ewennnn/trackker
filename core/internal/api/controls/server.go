@@ -39,11 +39,13 @@ func createSessionManager() *scs.SessionManager {
 
 func NewServer(log *slog.Logger, controls *service.Controls, multiplexer *service.Multiplexer, securityPinCode string) *Server {
 	return &Server{
-		log:            log,
-		controls:       controls,
-		multiplexer:    multiplexer,
+		log:         log,
+		controls:    controls,
+		multiplexer: multiplexer,
+
 		pinCode:        securityPinCode,
 		sessionManager: createSessionManager(),
+		attempts:       make(map[string]*Attempt),
 	}
 }
 
