@@ -5,6 +5,8 @@ import (
 	"sync"
 )
 
+type UnsubscribeFunc func()
+
 type Broadcaster[T any] struct {
 	log     *slog.Logger
 	mu      sync.RWMutex
@@ -23,7 +25,7 @@ func NewBroadcaster[T any](log *slog.Logger) *Broadcaster[T] {
 	}
 }
 
-func (b *Broadcaster[T]) Subscribe(buffer int) (chan T, func()) {
+func (b *Broadcaster[T]) Subscribe(buffer int) (chan T, UnsubscribeFunc) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -60,7 +62,7 @@ func (b *Broadcaster[T]) Broadcast(data T) {
 	}
 }
 
-func (b *Broadcaster[T]) SubscribeClientCount(buffer int) (chan int, func()) {
+func (b *Broadcaster[T]) SubscribeClientCount(buffer int) (chan int, UnsubscribeFunc) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
