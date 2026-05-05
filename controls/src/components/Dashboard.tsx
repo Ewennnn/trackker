@@ -189,22 +189,27 @@ export const Dashboard = (props: DashboardProps) => {
     startSupervision()
     void fetchStreamDeck()
 
-    if (previewShellRef) {
-      previewResizeObserver = new ResizeObserver(() => {
-        updatePreviewScale()
-      })
-      previewResizeObserver.observe(previewShellRef)
-      updatePreviewScale()
-    }
-
     // Force scale recalculation when preview is reopened
     createEffect(() => {
-      if (isPreviewOpen()) {
-        // Use setTimeout to ensure DOM has been updated
-        const timeoutId = setTimeout(() => {
+      if (isPreviewOpen() && previewShellRef) {
+        // Unobserve previous element if exists
+        if (previewResizeObserver) {
+          previewResizeObserver.disconnect()
+        }
+
+        // Create new ResizeObserver for the current element
+        previewResizeObserver = new ResizeObserver(() => {
           updatePreviewScale()
-        }, 0)
-        onCleanup(() => clearTimeout(timeoutId))
+        })
+        previewResizeObserver.observe(previewShellRef)
+        updatePreviewScale()
+
+        onCleanup(() => {
+          if (previewResizeObserver) {
+            previewResizeObserver.disconnect()
+            previewResizeObserver = null
+          }
+        })
       }
     })
 
