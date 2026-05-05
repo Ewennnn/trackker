@@ -135,6 +135,8 @@ func (s *Server) processControlsEvent(event service.DisplayEvent, r *http.Reques
 		s.sendSupervisionDisplayMode(sseW, evt.Mode)
 	case service.DisplayServerStatusChangeEvent:
 		s.sendSupervisionHTTPOnline(sseW, evt.Running)
+	case service.ConnectedClientEvent:
+		s.sendSupervisionConnectedClients(sseW, evt.Service, evt.Count)
 	}
 }
 
@@ -156,9 +158,9 @@ func (s *Server) sendSupervisionCurrentTrack(sseW *api.Sse, r *http.Request, tra
 	})
 }
 
-func (s *Server) sendSupervisionConnectedClients(sseW *api.Sse, count int) {
+func (s *Server) sendSupervisionConnectedClients(sseW *api.Sse, service string, count int) {
 	s.sendSupervisionEvent(sseW, "connected_clients", map[string]int{
-		"connectedClients": count,
+		service: count,
 	})
 }
 

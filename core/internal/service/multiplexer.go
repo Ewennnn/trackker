@@ -43,6 +43,13 @@ type DisplayServerStatusChangeEvent struct {
 
 func (DisplayServerStatusChangeEvent) IsDisplayEvent() {}
 
+type ConnectedClientEvent struct {
+	Service string
+	Count   int
+}
+
+func (ConnectedClientEvent) IsDisplayEvent() {}
+
 type Multiplexer struct {
 	log *slog.Logger
 
@@ -115,7 +122,7 @@ func (m *Multiplexer) SubscribeToControls() (chan DisplayEvent, UnsubscribeFunc)
 // Run écoute les informations provenant des services Tracker et Controls
 // et les transfert dans les channels de traitement du Multiplexer
 func (m *Multiplexer) Run(ctx context.Context, wg *sync.WaitGroup) {
-	wg.Add(1)
+	wg.Add(2)
 	go func() {
 		defer wg.Done()
 		for {
@@ -134,6 +141,24 @@ func (m *Multiplexer) Run(ctx context.Context, wg *sync.WaitGroup) {
 				case DisplayServerStatus:
 					m.processDisplayServerStatusEvent(evt.(DisplayServerStatus))
 				}
+			}
+		}
+	}()
+	go func() {
+		defer wg.Done()
+
+		displayClients, unsubscribeDisplayCount := m.displayBroadcaster.SubscribeClientCount(1)
+		defer unsubscribeDisplayCount()
+		controlsClients, unsubscribeControlsCount := m.controlsBroadcaster.SubscribeClientCount(1)
+		defer unsubscribeControlsCount()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case count := <-displayClients:
+				m.controlsBroadcaster.Broadcast(ConnectedClientEvent{Service: "display", Count: count})
+			case count := <-controlsClients:
+				m.controlsBroadcaster.Broadcast(ConnectedClientEvent{Service: "controls", Count: count})
 			}
 		}
 	}()
