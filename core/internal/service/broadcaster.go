@@ -97,3 +97,9 @@ func (b *Broadcaster[T]) notifyClientCountLocked() {
 		}
 	}
 }
+
+func (b *Broadcaster[T]) GetClientCount() int {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return len(b.clients)
+}

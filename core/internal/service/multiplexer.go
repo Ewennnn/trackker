@@ -116,6 +116,8 @@ func (m *Multiplexer) SubscribeToControls() (chan DisplayEvent, UnsubscribeFunc)
 		}
 		ch <- DisplayModeChangeEvent{Mode: m.currentDisplayMode}
 		ch <- DisplayServerStatusChangeEvent{Running: m.currentDisplayServerStatus}
+		ch <- ConnectedClientEvent{Service: "display", Count: m.displayBroadcaster.GetClientCount()}
+		// Request controls client count not needed, send by goroutine in listenConnectedClients
 	}()
 
 	return ch, unsubscribe
