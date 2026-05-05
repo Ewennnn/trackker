@@ -111,7 +111,9 @@ func (m *Multiplexer) SubscribeToControls() (chan DisplayEvent, UnsubscribeFunc)
 	defer m.mu.Unlock()
 
 	go func() {
-		ch <- TrackChangeEvent{Track: *m.currentTrack}
+		if m.currentTrack != nil {
+			ch <- TrackChangeEvent{Track: *m.currentTrack}
+		}
 		ch <- DisplayModeChangeEvent{Mode: m.currentDisplayMode}
 		ch <- DisplayServerStatusChangeEvent{Running: m.currentDisplayServerStatus}
 	}()
