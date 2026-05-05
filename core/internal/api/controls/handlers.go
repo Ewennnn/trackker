@@ -133,6 +133,8 @@ func (s *Server) processControlsEvent(event service.DisplayEvent, r *http.Reques
 		s.sendSupervisionCurrentTrack(sseW, r, evt.Track)
 	case service.DisplayModeChangeEvent:
 		s.sendSupervisionDisplayMode(sseW, evt.Mode)
+	case service.DisplayServerStatusChangeEvent:
+		s.sendSupervisionHTTPOnline(sseW, evt.Running)
 	}
 }
 

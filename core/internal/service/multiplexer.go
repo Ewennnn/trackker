@@ -13,8 +13,12 @@ type TrackEvent struct {
 	Track model.Track
 }
 
-type ControlEvent struct {
+type DisplayModeEvent struct {
 	DisplayMode model.DisplayMode
+}
+
+type DisplayServerStatus struct {
+	Running bool
 }
 
 type DisplayEvent interface {
@@ -33,6 +37,12 @@ type DisplayModeChangeEvent struct {
 
 func (DisplayModeChangeEvent) IsDisplayEvent() {}
 
+type DisplayServerStatusChangeEvent struct {
+	Running bool
+}
+
+func (DisplayServerStatusChangeEvent) IsDisplayEvent() {}
+
 type Multiplexer struct {
 	log *slog.Logger
 
@@ -40,9 +50,10 @@ type Multiplexer struct {
 	displayBroadcaster  *Broadcaster[DisplayEvent]
 	controlsBroadcaster *Broadcaster[DisplayEvent]
 
-	mu                 sync.Mutex
-	currentDisplayMode model.DisplayMode
-	currentTrack       *model.Track
+	mu                         sync.Mutex
+	currentDisplayMode         model.DisplayMode
+	currentTrack               *model.Track
+	currentDisplayServerStatus bool
 }
 
 func NewMultiplexer(log *slog.Logger, eventBus <-chan Event) *Multiplexer {
@@ -58,6 +69,7 @@ func NewMultiplexer(log *slog.Logger, eventBus <-chan Event) *Multiplexer {
 func (m *Multiplexer) Init(tracker *Tracker, controls *Controls) {
 	m.currentTrack = tracker.GetCurrentTrack()
 	m.currentDisplayMode = controls.displayMode
+	m.currentDisplayServerStatus = controls.GetDisplayServerStatus()
 }
 
 func (m *Multiplexer) GetCurrentTrack() *model.Track {
@@ -72,14 +84,15 @@ func (m *Multiplexer) SubscribeToDisplay() (chan DisplayEvent, UnsubscribeFunc) 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	go func() {
+	if m.currentDisplayMode == model.DisplayModeLive && m.currentTrack != nil {
 		ch <- TrackChangeEvent{
 			Track: *m.currentTrack,
 		}
+	} else {
 		ch <- DisplayModeChangeEvent{
 			Mode: m.currentDisplayMode,
 		}
-	}()
+	}
 
 	return ch, unsubscribe
 }
@@ -90,15 +103,11 @@ func (m *Multiplexer) SubscribeToControls() (chan DisplayEvent, UnsubscribeFunc)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.currentDisplayMode == model.DisplayModeLive && m.currentTrack != nil {
-		ch <- TrackChangeEvent{
-			Track: *m.currentTrack,
-		}
-	} else {
-		ch <- DisplayModeChangeEvent{
-			Mode: m.currentDisplayMode,
-		}
-	}
+	go func() {
+		ch <- TrackChangeEvent{Track: *m.currentTrack}
+		ch <- DisplayModeChangeEvent{Mode: m.currentDisplayMode}
+		ch <- DisplayServerStatusChangeEvent{Running: m.currentDisplayServerStatus}
+	}()
 
 	return ch, unsubscribe
 }
@@ -120,8 +129,10 @@ func (m *Multiplexer) Run(ctx context.Context, wg *sync.WaitGroup) {
 				switch evt.(type) {
 				case TrackEvent:
 					m.processTrackEvent(evt.(TrackEvent))
-				case ControlEvent:
-					m.processControlEvent(evt.(ControlEvent))
+				case DisplayModeEvent:
+					m.processControlEvent(evt.(DisplayModeEvent))
+				case DisplayServerStatus:
+					m.processDisplayServerStatusEvent(evt.(DisplayServerStatus))
 				}
 			}
 		}
@@ -139,7 +150,7 @@ func (m *Multiplexer) processTrackEvent(evt TrackEvent) {
 	}
 }
 
-func (m *Multiplexer) processControlEvent(evt ControlEvent) {
+func (m *Multiplexer) processControlEvent(evt DisplayModeEvent) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -153,4 +164,9 @@ func (m *Multiplexer) processControlEvent(evt ControlEvent) {
 	if evt.DisplayMode == model.DisplayModeLive {
 		m.displayBroadcaster.Broadcast(TrackChangeEvent{Track: *m.currentTrack})
 	}
+}
+
+func (m *Multiplexer) processDisplayServerStatusEvent(evt DisplayServerStatus) {
+	m.currentDisplayServerStatus = evt.Running
+	m.controlsBroadcaster.Broadcast(DisplayServerStatusChangeEvent{Running: m.currentDisplayServerStatus})
 }

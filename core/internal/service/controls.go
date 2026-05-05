@@ -66,8 +66,10 @@ func (c *Controls) StartDisplayServer() (bool, error) {
 		if err != nil {
 			c.log.Error("Display server stopped with error", "error", err)
 		}
+		c.out <- DisplayServerStatus{Running: false}
 	}()
 
+	c.out <- DisplayServerStatus{Running: true}
 	return true, nil
 }
 
@@ -120,7 +122,7 @@ func (c *Controls) ClickOnButton(buttonID int64) error {
 		c.displayMode = button.DisplayMode
 	}
 
-	c.out <- ControlEvent{DisplayMode: c.displayMode}
+	c.out <- DisplayModeEvent{DisplayMode: c.displayMode}
 	return nil
 }
 
