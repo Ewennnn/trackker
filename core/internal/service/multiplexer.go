@@ -119,10 +119,17 @@ func (m *Multiplexer) SubscribeToControls() (chan DisplayEvent, UnsubscribeFunc)
 	return ch, unsubscribe
 }
 
+// Run lance les goroutines permettant au service Multiplexer d'être réactif aux évènements
+// provenant des services Tracker et Controls.
+func (m *Multiplexer) Run(ctx context.Context, wg *sync.WaitGroup) {
+	go m.listenConnectedClients(ctx, wg)
+	go m.listenIncomingEvents(ctx, wg)
+}
+
 // Run écoute les informations provenant des services Tracker et Controls
 // et les transfert dans les channels de traitement du Multiplexer
-func (m *Multiplexer) Run(ctx context.Context, wg *sync.WaitGroup) {
-	wg.Add(2)
+func (m *Multiplexer) listenIncomingEvents(ctx context.Context, wg *sync.WaitGroup) {
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		for {
@@ -144,6 +151,11 @@ func (m *Multiplexer) Run(ctx context.Context, wg *sync.WaitGroup) {
 			}
 		}
 	}()
+}
+
+// listenConnectedClients écoute les changements du nombre de clients connectés sur les services Tracker et Controls
+func (m *Multiplexer) listenConnectedClients(ctx context.Context, wg *sync.WaitGroup) {
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 
