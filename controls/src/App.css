@@ -281,7 +281,7 @@
 .deck-grid {
   margin-top: 14px;
   display: grid;
-  grid-template-columns: repeat(var(--deck-columns, 4), minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
   grid-auto-rows: 1fr;
 }

@@ -368,7 +368,7 @@ export const Dashboard = (props: DashboardProps) => {
         </div>
         <Show when={!isLoadingButtons()} fallback={<p class="meta-text">Chargement des boutons...</p>}>
           <Show when={sortedButtons().length > 0} fallback={<p class="meta-text">Aucun bouton configure.</p>}>
-            <div class="deck-grid" style={{ '--deck-columns': String(STREAMDECK_COLUMNS) }}>
+            <div class="deck-grid">
               {sortedButtons().map((button, index) => (
                 <ControlButton
                   label={button.label}
