@@ -3,14 +3,14 @@ package model
 type DisplayMode string
 
 const (
-	DisplayModeLive           DisplayMode = "live"
-	DisplayModeBlackout       DisplayMode = "blackout"
-	DisplayModeFreezeTracking DisplayMode = "freeze_tracking"
+	DisplayModeLive     DisplayMode = "live"
+	DisplayModeBlackout DisplayMode = "blackout"
+	DisplayModeFreeze   DisplayMode = "freeze_tracking"
 )
 
 func (d DisplayMode) IsValid() bool {
 	switch d {
-	case DisplayModeLive, DisplayModeBlackout, DisplayModeFreezeTracking:
+	case DisplayModeLive, DisplayModeBlackout, DisplayModeFreeze:
 		return true
 	default:
 		return false

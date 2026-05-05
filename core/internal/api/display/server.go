@@ -13,20 +13,18 @@ import (
 )
 
 type Server struct {
-	log       *slog.Logger
-	tracker   *service.Tracker
-	controls  *service.Controls // Temporary
-	formatter formatter.Formatter
+	log         *slog.Logger
+	formatter   formatter.Formatter
+	multiplexer *service.Multiplexer
 
 	httpServer *http.Server
 }
 
-func NewServer(log *slog.Logger, formatter formatter.Formatter, tracker *service.Tracker, controls *service.Controls) *Server {
+func NewServer(log *slog.Logger, formatter formatter.Formatter, multiplexer *service.Multiplexer) *Server {
 	return &Server{
-		log:       log,
-		tracker:   tracker,
-		controls:  controls,
-		formatter: formatter,
+		log:         log,
+		formatter:   formatter,
+		multiplexer: multiplexer,
 	}
 }
 
@@ -42,7 +40,7 @@ func (s *Server) Start(ctx context.Context) error {
 
 	mux.Handle("GET /", s.LoadIndex())
 	mux.Handle("GET /cover/{id}", s.GetCover())
-	mux.Handle("GET /events", s.ListenForTracksSSE())
+	mux.Handle("GET /events", s.ListenDisplayEventsSSE())
 
 	s.httpServer = &http.Server{
 		Addr:    fmt.Sprintf("%s:%s", "localhost", "9000"),

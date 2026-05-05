@@ -17,13 +17,14 @@ import (
 )
 
 type Trackker struct {
-	logger    *slog.Logger
-	config    *config.Config
-	tracker   *service.Tracker
-	controls  *service.Controls
-	repo      *repository.Repository
-	parser    parser.Parser
-	formatter formatter.Formatter
+	logger      *slog.Logger
+	config      *config.Config
+	tracker     *service.Tracker
+	controls    *service.Controls
+	multiplexer *service.Multiplexer
+	repo        *repository.Repository
+	parser      parser.Parser
+	formatter   formatter.Formatter
 
 	controlsServer *controls.Server
 }
@@ -77,14 +78,21 @@ func (app *Trackker) Start(appCtx context.Context, wg *sync.WaitGroup) error {
 	}
 	app.repo = repo
 
-	controlsService := service.NewControls(appCtx, app.logger, repo, app.buildDisplayServer)
+	eventBus := make(chan service.Event, 1)
+
+	controlsService := service.NewControls(appCtx, app.logger, repo, eventBus, app.buildDisplayServer)
 	app.controls = controlsService
 
-	trackerService := service.NewTracker(app.logger, app.config, controlsService, repo, app.parser)
+	trackerService := service.NewTracker(app.logger, app.config, repo, app.parser, eventBus)
 	trackerService.StartTracking(appCtx, wg)
 	app.tracker = trackerService
 
-	controlsServer := controls.NewServer(app.logger, controlsService, app.config.Control.PinCode, app.tracker)
+	multiplexer := service.NewMultiplexer(app.logger, eventBus)
+	multiplexer.Init(trackerService, controlsService)
+	multiplexer.Run(appCtx, wg)
+	app.multiplexer = multiplexer
+
+	controlsServer := controls.NewServer(app.logger, controlsService, multiplexer, app.config.Control.PinCode)
 	app.controlsServer = controlsServer
 
 	wg.Add(1)
@@ -101,5 +109,5 @@ func (app *Trackker) Start(appCtx context.Context, wg *sync.WaitGroup) error {
 }
 
 func (app *Trackker) buildDisplayServer() api.Server {
-	return display.NewServer(app.logger, app.formatter, app.tracker, app.controls)
+	return display.NewServer(app.logger, app.formatter, app.multiplexer)
 }

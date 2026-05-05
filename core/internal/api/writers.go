@@ -48,3 +48,7 @@ func (w *Sse) sendAndFlushPacket(p *SsePacket) error {
 func (w *Sse) Ping() (int, error) {
 	return w.ResponseWriter.Write([]byte(": ping\n\n"))
 }
+
+func (w *Sse) SilentPing() {
+	_, _ = w.Ping()
+}

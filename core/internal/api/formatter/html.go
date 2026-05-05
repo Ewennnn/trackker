@@ -13,7 +13,7 @@ type HtmlFormatter struct {
 	tmpl *template.Template
 }
 
-func (p *HtmlFormatter) Format(track *model.Track) (string, error) {
+func (p *HtmlFormatter) Format(track model.Track) (string, error) {
 	var buf bytes.Buffer
 	err := p.tmpl.Execute(&buf, track)
 	if err != nil {

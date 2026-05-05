@@ -15,9 +15,9 @@ import (
 )
 
 type Server struct {
-	log      *slog.Logger
-	controls *service.Controls
-	tracker  *service.Tracker // TODO transfer this service to controls service that transfer tracks data for controls panel
+	log         *slog.Logger
+	controls    *service.Controls
+	multiplexer *service.Multiplexer
 
 	sessionManager *scs.SessionManager
 	pinCode        string
@@ -37,11 +37,11 @@ func createSessionManager() *scs.SessionManager {
 	return sessionManager
 }
 
-func NewServer(log *slog.Logger, controls *service.Controls, securityPinCode string, tracker *service.Tracker) *Server {
+func NewServer(log *slog.Logger, controls *service.Controls, multiplexer *service.Multiplexer, securityPinCode string) *Server {
 	return &Server{
 		log:            log,
 		controls:       controls,
-		tracker:        tracker,
+		multiplexer:    multiplexer,
 		pinCode:        securityPinCode,
 		sessionManager: createSessionManager(),
 	}

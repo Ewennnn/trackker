@@ -8,7 +8,7 @@ import (
 )
 
 type Formatter interface {
-	Format(track *model.Track) (string, error)
+	Format(track model.Track) (string, error)
 }
 
 func NewFormatter(cfg *config.Config, log *slog.Logger) (Formatter, error) {

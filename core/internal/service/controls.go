@@ -15,9 +15,9 @@ type Controls struct {
 	log    *slog.Logger
 	repo   *repository.Repository
 
-	displayMode            model.DisplayMode
-	displayModeMu          sync.RWMutex
-	displayModeBroadcaster *Broadcaster[model.DisplayMode]
+	displayMode   model.DisplayMode
+	displayModeMu sync.RWMutex
+	out           chan<- Event
 
 	displayServerBuilder       api.ServerBuilder
 	displayServer              api.Server
@@ -25,15 +25,16 @@ type Controls struct {
 	cancelDisplayServerContext context.CancelFunc
 }
 
-func NewControls(appCtx context.Context, log *slog.Logger, repo *repository.Repository, displayServerBuilder api.ServerBuilder) *Controls {
+func NewControls(appCtx context.Context, log *slog.Logger, repo *repository.Repository, eventBus chan<- Event, displayServerBuilder api.ServerBuilder) *Controls {
 	return &Controls{
-		appCtx:               appCtx,
-		log:                  log,
-		repo:                 repo,
-		displayServerBuilder: displayServerBuilder,
-		displayMode:          model.DisplayModeLive,
+		appCtx: appCtx,
+		log:    log,
+		repo:   repo,
 
-		displayModeBroadcaster: NewBroadcaster[model.DisplayMode](log),
+		displayMode: model.DisplayModeLive,
+		out:         eventBus,
+
+		displayServerBuilder: displayServerBuilder,
 	}
 }
 
@@ -119,7 +120,7 @@ func (c *Controls) ClickOnButton(buttonID int64) error {
 		c.displayMode = button.DisplayMode
 	}
 
-	c.displayModeBroadcaster.Broadcast(c.displayMode)
+	c.out <- ControlEvent{DisplayMode: c.displayMode}
 	return nil
 }
 
@@ -128,16 +129,4 @@ func (c *Controls) GetDisplayMode() model.DisplayMode {
 	defer c.displayModeMu.RUnlock()
 
 	return c.displayMode
-}
-
-func (c *Controls) SetDisplayMode(mode model.DisplayMode) {
-	c.displayModeMu.Lock()
-	c.displayMode = mode
-	c.displayModeMu.Unlock()
-
-	c.displayModeBroadcaster.Broadcast(mode)
-}
-
-func (c *Controls) SubscribeDisplayMode() (chan model.DisplayMode, func()) {
-	return c.displayModeBroadcaster.Subscribe(1)
 }

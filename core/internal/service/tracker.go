@@ -14,38 +14,25 @@ import (
 )
 
 type Tracker struct {
-	log      *slog.Logger
-	config   *config.Config
-	controls *Controls
-	repo     *repository.Repository
+	log    *slog.Logger
+	config *config.Config
+	repo   *repository.Repository
+	parser parser.Parser
 
-	parser        parser.Parser
-	liveTrackList chan *model.Track
-
-	trackBroadcaster *Broadcaster[*model.Track]
+	tracksChan chan *model.Track
+	out        chan<- Event
 }
 
-func NewTracker(log *slog.Logger, config *config.Config, controls *Controls, repo *repository.Repository, parser parser.Parser) *Tracker {
+func NewTracker(log *slog.Logger, config *config.Config, repo *repository.Repository, parser parser.Parser, eventbus chan<- Event) *Tracker {
 	return &Tracker{
-		log:      log,
-		config:   config,
-		controls: controls,
-		repo:     repo,
+		log:    log,
+		config: config,
+		repo:   repo,
+		parser: parser,
 
-		parser:        parser,
-		liveTrackList: make(chan *model.Track, 1),
-
-		trackBroadcaster: NewBroadcaster[*model.Track](log),
+		tracksChan: make(chan *model.Track, 1),
+		out:        eventbus,
 	}
-}
-
-// SubscribeForTracks Créer un nouveau channel abonné à la réception des tracks
-func (t *Tracker) SubscribeForTracks() (chan *model.Track, func()) {
-	return t.trackBroadcaster.Subscribe(1)
-}
-
-func (t *Tracker) SubscribeConnectedClients() (chan int, func()) {
-	return t.trackBroadcaster.SubscribeClientCount(1)
 }
 
 // GetCurrentTrack Récupère la track actuelle et l'envoie dans le channel
@@ -123,7 +110,7 @@ func (t *Tracker) handleHistoryReader(ctx context.Context, reader *bufio.Reader)
 		t.processTracks(tracks)
 	}
 
-	return t.parser.StartHistoryTracking(ctx, reader, t.liveTrackList)
+	return t.parser.StartHistoryTracking(ctx, reader, t.tracksChan)
 }
 
 // processTracks traites toutes les tracks passées non enregistrées, en sauvegardant dans l'historique
@@ -149,7 +136,7 @@ func (t *Tracker) handleLastTrack(track *model.Track) {
 		return
 	}
 
-	t.liveTrackList <- track
+	t.tracksChan <- track
 }
 
 // listenHistory Reçoit les Tracks traités par le Parser
@@ -159,9 +146,9 @@ func (t *Tracker) listenHistory(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case track := <-t.liveTrackList:
+		case track := <-t.tracksChan:
 			t.repo.AddTrackToHistory(track)
-			t.trackBroadcaster.Broadcast(track)
+			t.out <- TrackEvent{Track: *track}
 		}
 	}
 }

@@ -39,18 +39,14 @@ type SimpleTrackResponse struct {
 	CoverURL *string `json:"coverUrl"`
 }
 
-func BuildSupervisionTrackPayload(r *http.Request, track *Track) *SimpleTrackResponse {
-	if track == nil {
-		return nil
-	}
-
+func BuildSupervisionTrackPayload(r *http.Request, track Track) SimpleTrackResponse {
 	artist := ""
 	if track.Artist != nil {
 		artist = *track.Artist
 	}
 
 	coverURL := utils.GetCoverURL(r, track.ID)
-	return &SimpleTrackResponse{
+	return SimpleTrackResponse{
 		Title:    track.Name,
 		Artist:   artist,
 		FilePath: track.Path,

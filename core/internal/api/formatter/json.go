@@ -14,7 +14,7 @@ type trackDTO struct {
 	Duration time.Duration `json:"duration"`
 }
 
-func newTrackDTO(t *model.Track) *trackDTO {
+func newTrackDTO(t model.Track) *trackDTO {
 	return &trackDTO{
 		ID:       t.ID,
 		Artist:   t.Artist,
@@ -26,7 +26,7 @@ func newTrackDTO(t *model.Track) *trackDTO {
 
 type JsonFormatter struct{}
 
-func (p *JsonFormatter) Format(track *model.Track) (string, error) {
+func (p *JsonFormatter) Format(track model.Track) (string, error) {
 	dto := newTrackDTO(track)
 	data, err := json.Marshal(dto)
 	if err != nil {
