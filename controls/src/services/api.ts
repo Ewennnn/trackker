@@ -5,21 +5,43 @@ export type CurrentTrack = {
   coverUrl: string | null
 }
 
+export type DisplayMode = 'live' | 'blackout' | 'freeze_tracking'
+
+export type StreamDeckButton = {
+  id: number
+  label: string
+  textColor: string
+  backgroundColor: string
+  icon?: string | null
+  displayMode: DisplayMode
+  position: number
+  isDeletable: boolean
+}
+
 export type SupervisionStatus = {
-  httpOnline: boolean
-  connectedClients: number
+  displayServerOnline: boolean
+  connectedClients: {
+    display: number
+    controls: number
+  }
+  displayMode: DisplayMode
   currentTrack: CurrentTrack | null
 }
 
 type SupervisionPayload = {
   httpOnline?: boolean
-  connectedClients?: number
+  connectedClients?: Record<string, number>
+  displayMode?: DisplayMode
   currentTrack?: {
     title?: string
     artist?: string
     filePath?: string
+    coverUrlPath?: string | null
+    coverURLPath?: string | null
     coverUrl?: string | null
   } | null
+  display?: number
+  controls?: number
 }
 
 type SupervisionHandlers = {
@@ -38,8 +60,8 @@ export class ApiError extends Error {
   }
 }
 
-const API_BASE_URL = import.meta.env.VITE_TRACKKER_API_BASE ?? 'http://localhost:9000'
-export const PREVIEW_URL = import.meta.env.VITE_TRACKKER_PREVIEW_URL ?? 'http://192.168.1.60:9000'
+const API_BASE_URL = import.meta.env.VITE_TRACKKER_API_BASE ?? 'http://localhost:8080'
+export const PREVIEW_URL = import.meta.env.VITE_TRACKKER_PREVIEW_URL ?? 'http://localhost:9000'
 
 const toUrl = (path: string): string => `${API_BASE_URL}${path}`
 
@@ -89,20 +111,54 @@ export const getSessionStatus = async (): Promise<boolean> => {
   }
 }
 
-const toSupervisionStatus = (payload: SupervisionPayload): SupervisionStatus => {
+const toSupervisionStatus = (payload: SupervisionPayload, lastStatus: SupervisionStatus): SupervisionStatus => {
   const hasTrack = payload.currentTrack !== null && payload.currentTrack !== undefined
+  const nextConnected = {
+    ...lastStatus.connectedClients,
+  }
+
+  if (payload.connectedClients) {
+    if (typeof payload.connectedClients.display === 'number') {
+      nextConnected.display = payload.connectedClients.display
+    }
+    if (typeof payload.connectedClients.controls === 'number') {
+      nextConnected.controls = payload.connectedClients.controls
+    }
+  }
+
+  if (typeof payload.display === 'number') {
+    nextConnected.display = payload.display
+  }
+
+  if (typeof payload.controls === 'number') {
+    nextConnected.controls = payload.controls
+  }
+
+  const rawCoverPath =
+    payload.currentTrack?.coverUrlPath ??
+    payload.currentTrack?.coverURLPath ??
+    payload.currentTrack?.coverUrl ??
+    null
+  const coverUrl = rawCoverPath
+    ? rawCoverPath.startsWith('http')
+      ? rawCoverPath
+      : `${PREVIEW_URL}${rawCoverPath}`
+    : null
 
   return {
-    httpOnline: payload.httpOnline ?? false,
-    connectedClients: payload.connectedClients ?? 0,
+    displayServerOnline: payload.httpOnline ?? lastStatus.displayServerOnline,
+    connectedClients: nextConnected,
+    displayMode: payload.displayMode ?? lastStatus.displayMode,
     currentTrack: hasTrack
       ? {
           title: payload.currentTrack?.title ?? 'Titre inconnu',
           artist: payload.currentTrack?.artist ?? 'Artiste inconnu',
           filePath: payload.currentTrack?.filePath ?? '-',
-          coverUrl: payload.currentTrack?.coverUrl ?? null,
+          coverUrl,
         }
-      : null,
+      : payload.currentTrack === null
+        ? null
+        : lastStatus.currentTrack,
   }
 }
 
@@ -111,20 +167,17 @@ export const connectSupervisionStream = (handlers: SupervisionHandlers): (() => 
     withCredentials: true,
   })
   let lastStatus: SupervisionStatus = {
-    httpOnline: false,
-    connectedClients: 0,
+    displayServerOnline: false,
+    connectedClients: {
+      display: 0,
+      controls: 0,
+    },
+    displayMode: 'live',
     currentTrack: null,
   }
 
   const emitNextStatus = (payload: SupervisionPayload) => {
-    lastStatus = {
-      ...lastStatus,
-      ...toSupervisionStatus({
-        httpOnline: payload.httpOnline ?? lastStatus.httpOnline,
-        connectedClients: payload.connectedClients ?? lastStatus.connectedClients,
-        currentTrack: payload.currentTrack !== undefined ? payload.currentTrack : lastStatus.currentTrack,
-      }),
-    }
+    lastStatus = toSupervisionStatus(payload, lastStatus)
     handlers.onStatus(lastStatus)
   }
 
@@ -166,6 +219,14 @@ export const connectSupervisionStream = (handlers: SupervisionHandlers): (() => 
     }
   })
 
+  source.addEventListener('display_mode', (event) => {
+    try {
+      emitNextStatus(parsePayload((event as MessageEvent).data))
+    } catch {
+      handlers.onError?.(new Error('Payload SSE display_mode invalide.'))
+    }
+  })
+
   source.onerror = () => {
     handlers.onError?.(new Error('Connexion SSE supervision interrompue.'))
   }
@@ -175,13 +236,26 @@ export const connectSupervisionStream = (handlers: SupervisionHandlers): (() => 
   }
 }
 
-export const sendControlAction = async (action: string): Promise<void> => {
-  await fetchJson('/api/control/actions/' + encodeURIComponent(action), {
+export const getStreamDeckButtons = async (): Promise<StreamDeckButton[]> => {
+  return fetchJson('/api/control/ui/streamdeck', {
+    method: 'GET',
+  })
+}
+
+export const toggleStreamDeckButton = async (buttonId: number): Promise<{ displayMode: DisplayMode }> => {
+  return fetchJson(`/api/control/actions/button/${buttonId}`, {
     method: 'POST',
   })
 }
 
-// TODO(back): implementer POST /api/control/actions/{action} pour blackout/freeze_tracking
+export const startDisplayServer = async (): Promise<void> => {
+  await fetchJson('/api/control/display/start', {
+    method: 'POST',
+  })
+}
 
-
-
+export const stopDisplayServer = async (): Promise<void> => {
+  await fetchJson('/api/control/display/stop', {
+    method: 'POST',
+  })
+}

@@ -2,34 +2,41 @@ import { Show, createSignal, onCleanup, onMount } from 'solid-js'
 import {
   PREVIEW_URL,
   connectSupervisionStream,
-  sendControlAction,
+  getStreamDeckButtons,
+  startDisplayServer,
+  stopDisplayServer,
+  toggleStreamDeckButton,
+  type StreamDeckButton,
   type SupervisionStatus,
 } from '../services/api.ts'
 import { ControlButton } from './ControlButton.tsx'
 
 const DEFAULT_STATUS: SupervisionStatus = {
-  httpOnline: false,
-  connectedClients: 0,
+  displayServerOnline: false,
+  connectedClients: {
+    display: 0,
+    controls: 0,
+  },
+  displayMode: 'live',
   currentTrack: null,
 }
 
 const PREVIEW_WIDTH = 1920
 const PREVIEW_HEIGHT = 1080
+const STREAMDECK_COLUMNS = 4
 
-const actionList = [
-  {
-    id: 'blackout',
-    label: 'Blackout',
-    background: '#b110e7',
-    color: '#ffffff',
-  },
-  {
-    id: 'freeze_tracking',
-    label: 'Freeze Tracking',
-    background: '#177fea',
-    color: '#ffffff',
-  },
-] as const
+const toDisplayModeLabel = (mode: SupervisionStatus['displayMode']): string => {
+  if (mode === 'blackout') {
+    return 'Blackout'
+  }
+
+  if (mode === 'freeze_tracking') {
+    return 'Freeze tracking'
+  }
+
+  return 'Live'
+}
+
 type DashboardProps = {
   onConnectionClosed: () => void
 }
@@ -40,12 +47,56 @@ export const Dashboard = (props: DashboardProps) => {
   const [isPreviewOpen, setIsPreviewOpen] = createSignal(true)
   const [previewScale, setPreviewScale] = createSignal(1)
   const [infoMessage, setInfoMessage] = createSignal('')
+  const [streamDeckButtons, setStreamDeckButtons] = createSignal<StreamDeckButton[]>([])
+  const [isLoadingButtons, setIsLoadingButtons] = createSignal(false)
+  const [pendingButtons, setPendingButtons] = createSignal(new Set<number>())
   const currentTrack = () => status().currentTrack
+  const sortedButtons = () => [...streamDeckButtons()].sort((a, b) => a.position - b.position)
   let previewShellRef: HTMLDivElement | undefined
   let previewResizeObserver: ResizeObserver | null = null
 
   let stopSupervision: (() => void) | null = null
   let hasNotifiedConnectionClosed = false
+
+  const fetchStreamDeck = async () => {
+    setIsLoadingButtons(true)
+    try {
+      const buttons = await getStreamDeckButtons()
+      setStreamDeckButtons(buttons)
+    } catch (error) {
+      console.error(error)
+      setInfoMessage('Impossible de charger le streamdeck.')
+    } finally {
+      setIsLoadingButtons(false)
+    }
+  }
+
+  const toGridStyle = (button: StreamDeckButton, index: number) => {
+    const position = button.position > 0 ? button.position : index + 1
+    const row = Math.floor((position - 1) / STREAMDECK_COLUMNS) + 1
+    const column = ((position - 1) % STREAMDECK_COLUMNS) + 1
+    return {
+      'grid-column': String(column),
+      'grid-row': String(row),
+    }
+  }
+
+  const renderIcon = (icon: string | null | undefined) => {
+    if (!icon) {
+      return null
+    }
+
+    const trimmed = icon.trim()
+    if (trimmed.startsWith('<svg')) {
+      return <span class="control-button-icon" innerHTML={trimmed} />
+    }
+
+    if (trimmed.startsWith('http') || trimmed.startsWith('/')) {
+      return <img class="control-button-icon" src={trimmed} alt="" />
+    }
+
+    return <span class="control-button-icon">{trimmed}</span>
+  }
 
   const startSupervision = () => {
     stopSupervision?.()
@@ -77,13 +128,44 @@ export const Dashboard = (props: DashboardProps) => {
     })
   }
 
-  const triggerAction = async (action: string) => {
+  const triggerAction = async (button: StreamDeckButton) => {
+    const pending = new Set(pendingButtons())
+    pending.add(button.id)
+    setPendingButtons(pending)
+
     try {
-      await sendControlAction(action)
-      setInfoMessage(`Action envoyee: ${action}`)
+      const response = await toggleStreamDeckButton(button.id)
+      setInfoMessage(`Action envoyee: ${button.label} (mode: ${toDisplayModeLabel(response.displayMode)})`)
     } catch (error) {
       console.error(error)
-      setInfoMessage(`Echec de l'action: ${action}`)
+      setInfoMessage(`Echec de l'action: ${button.label}`)
+    } finally {
+      const nextPending = new Set(pendingButtons())
+      nextPending.delete(button.id)
+      setPendingButtons(nextPending)
+    }
+  }
+
+  const toggleDisplayServer = async () => {
+    const shouldStop = status().displayServerOnline
+    if (shouldStop) {
+      const confirmed = window.confirm('Couper le serveur de diffusion ?')
+      if (!confirmed) {
+        return
+      }
+    }
+
+    try {
+      if (shouldStop) {
+        await stopDisplayServer()
+        setInfoMessage('Arret du serveur de diffusion demande.')
+      } else {
+        await startDisplayServer()
+        setInfoMessage('Demarrage du serveur de diffusion demande.')
+      }
+    } catch (error) {
+      console.error(error)
+      setInfoMessage('Impossible de changer l\'etat du serveur de diffusion.')
     }
   }
 
@@ -99,6 +181,7 @@ export const Dashboard = (props: DashboardProps) => {
 
   onMount(() => {
     startSupervision()
+    void fetchStreamDeck()
 
     if (previewShellRef) {
       previewResizeObserver = new ResizeObserver(() => {
@@ -134,14 +217,27 @@ export const Dashboard = (props: DashboardProps) => {
             </strong>
           </div>
           <div class="status-item">
-            <span>Serveur HTTP</span>
-            <strong class={status().httpOnline ? 'status-ok' : 'status-ko'}>
-              {status().httpOnline ? 'Online' : 'Offline'}
+            <div class="status-item-row">
+              <span>Serveur display</span>
+              <button class="ghost-button" onClick={() => void toggleDisplayServer()}>
+                {status().displayServerOnline ? 'Eteindre' : 'Allumer'}
+              </button>
+            </div>
+            <strong class={status().displayServerOnline ? 'status-ok' : 'status-ko'}>
+              {status().displayServerOnline ? 'Online' : 'Offline'}
             </strong>
           </div>
           <div class="status-item">
-            <span>Clients connectes</span>
-            <strong>{status().connectedClients}</strong>
+            <span>Clients connectes (display)</span>
+            <strong>{status().connectedClients.display}</strong>
+          </div>
+          <div class="status-item">
+            <span>Clients connectes (controls)</span>
+            <strong>{status().connectedClients.controls}</strong>
+          </div>
+          <div class="status-item">
+            <span>Mode display</span>
+            <strong>{toDisplayModeLabel(status().displayMode)}</strong>
           </div>
           <div class="status-item track-item">
             <span>Track en cours</span>
@@ -168,18 +264,31 @@ export const Dashboard = (props: DashboardProps) => {
       </article>
 
       <article class="panel">
-        <h2>Streamdeck</h2>
-        <p>Commandes admin configurees dans le code.</p>
-        <div class="deck-grid">
-          {actionList.map((action) => (
-            <ControlButton
-              label={action.label}
-              background={action.background}
-              color={action.color}
-              onClick={() => void triggerAction(action.id)}
-            />
-          ))}
+        <div class="panel-head">
+          <h2>Streamdeck</h2>
+          <button class="ghost-button" onClick={() => void fetchStreamDeck()}>
+            Recharger
+          </button>
         </div>
+        <p>Commandes admin configurees dans le backend.</p>
+        <Show when={!isLoadingButtons()} fallback={<p class="meta-text">Chargement des boutons...</p>}>
+          <Show when={sortedButtons().length > 0} fallback={<p class="meta-text">Aucun bouton configure.</p>}>
+            <div class="deck-grid" style={{ '--deck-columns': String(STREAMDECK_COLUMNS) }}>
+              {sortedButtons().map((button, index) => (
+                <ControlButton
+                  label={button.label}
+                  background={button.backgroundColor}
+                  color={button.textColor}
+                  icon={renderIcon(button.icon)}
+                  isActive={status().displayMode === button.displayMode}
+                  disabled={pendingButtons().has(button.id)}
+                  style={toGridStyle(button, index)}
+                  onClick={() => void triggerAction(button)}
+                />
+              ))}
+            </div>
+          </Show>
+        </Show>
       </article>
 
       <article class="panel preview-panel">

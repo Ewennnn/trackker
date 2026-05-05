@@ -6,16 +6,19 @@ type ControlButtonProps = {
   color: string
   icon?: JSX.Element
   disabled?: boolean
+  isActive?: boolean
+  style?: JSX.CSSProperties
   onClick: () => void
 }
 
 export const ControlButton = (props: ControlButtonProps) => {
   return (
     <button
-      class="control-button"
+      class={`control-button${props.isActive ? ' is-active' : ''}`}
       style={{
         'background-color': props.background,
         color: props.color,
+        ...(props.style ?? {}),
       }}
       disabled={props.disabled}
       onClick={() => props.onClick()}
@@ -27,4 +30,3 @@ export const ControlButton = (props: ControlButtonProps) => {
     </button>
   )
 }
-
