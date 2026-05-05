@@ -121,16 +121,16 @@ func (s *Server) ListenForControlSupervisionSSE(appctx context.Context) http.Han
 			case <-pingTicker.C:
 				sseW.SilentPing()
 			case event := <-events:
-				s.processControlsEvent(event, r, sseW)
+				s.processControlsEvent(event, sseW)
 			}
 		}
 	}
 }
 
-func (s *Server) processControlsEvent(event service.DisplayEvent, r *http.Request, sseW *api.Sse) {
+func (s *Server) processControlsEvent(event service.DisplayEvent, sseW *api.Sse) {
 	switch evt := event.(type) {
 	case service.TrackChangeEvent:
-		s.sendSupervisionCurrentTrack(sseW, r, evt.Track)
+		s.sendSupervisionCurrentTrack(sseW, evt.Track)
 	case service.DisplayModeChangeEvent:
 		s.sendSupervisionDisplayMode(sseW, evt.Mode)
 	case service.DisplayServerStatusChangeEvent:
@@ -152,9 +152,9 @@ func (s *Server) sendSupervisionDisplayMode(sseW *api.Sse, mode model.DisplayMod
 	})
 }
 
-func (s *Server) sendSupervisionCurrentTrack(sseW *api.Sse, r *http.Request, track model.Track) {
+func (s *Server) sendSupervisionCurrentTrack(sseW *api.Sse, track model.Track) {
 	s.sendSupervisionEvent(sseW, "current_track", map[string]model.SimpleTrackResponse{
-		"currentTrack": model.BuildSupervisionTrackPayload(r, track),
+		"currentTrack": model.BuildSupervisionTrackPayload(track),
 	})
 }
 
