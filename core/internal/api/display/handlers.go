@@ -60,7 +60,7 @@ func (s *Server) ListenDisplayEventsSSE() http.HandlerFunc {
 				s.sendIconAsTrack(sseW)
 				return
 			case <-ping.C:
-				sseW.SilentPing()
+				sseW.Ping()
 			case event := <-events:
 				s.processDisplayEvent(event, sseW)
 			}

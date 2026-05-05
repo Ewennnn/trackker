@@ -119,7 +119,7 @@ func (s *Server) ListenForControlSupervisionSSE(appctx context.Context) http.Han
 				s.log.Info("App context done, closing control supervision SSE")
 				return
 			case <-pingTicker.C:
-				sseW.SilentPing()
+				sseW.Ping()
 			case event := <-events:
 				s.processControlsEvent(event, sseW)
 			}

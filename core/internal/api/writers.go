@@ -45,10 +45,9 @@ func (w *Sse) sendAndFlushPacket(p *SsePacket) error {
 	return err
 }
 
-func (w *Sse) Ping() (int, error) {
-	return w.ResponseWriter.Write([]byte(": ping\n\n"))
-}
-
-func (w *Sse) SilentPing() {
-	_, _ = w.Ping()
+func (w *Sse) Ping() {
+	_, _ = w.ResponseWriter.Write([]byte(": ping\n\n"))
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
 }
