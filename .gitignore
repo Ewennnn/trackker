@@ -1,3 +1,11 @@
 .idea
+**/.env*
+
+# Application runtime files
 data
-*.exe
+
+# Application build files
+web-controls/dist
+web-controls/node_modules
+internal/**/static
+trackker*

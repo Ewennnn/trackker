@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 	"trackker/internal/api"
+	"trackker/internal/api/common"
 	"trackker/internal/service"
 
 	"github.com/alexedwards/scs/v2"
@@ -55,6 +56,9 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
+
+	// UI
+	mux.Handle("/", http.FileServer(http.FS(common.AssetsFS())))
 
 	// Security
 	mux.Handle("POST /api/pincode/{code}", s.checkPinCode())
