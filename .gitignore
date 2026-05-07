@@ -9,3 +9,4 @@ web-controls/dist
 web-controls/node_modules
 internal/**/static
 trackker*
+!cmd/api/trackker.ico
