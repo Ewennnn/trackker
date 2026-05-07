@@ -32,7 +32,6 @@ clean:
 	@echo "🧹 Cleaning..."
 	rm -f $(BINARY_NAME)
 	rm -rf $(WEB_DIR)/dist
-	rm -rf $(WEB_DIR)/node_modules
 	go clean ./...
 
 # -------------------
