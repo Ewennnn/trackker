@@ -65,8 +65,15 @@ export class ApiError extends Error {
   }
 }
 
-const API_BASE_URL = import.meta.env.VITE_TRACKKER_API_BASE ?? 'http://localhost:8080'
-export const PREVIEW_URL = import.meta.env.VITE_TRACKKER_PREVIEW_URL ?? 'http://localhost:9000'
+const HOST = window.location.hostname
+
+export const API_BASE_URL =
+    import.meta.env.VITE_TRACKKER_API_BASE ??
+    `http://${HOST}:8080`
+
+export const PREVIEW_URL =
+    import.meta.env.VITE_TRACKKER_PREVIEW_URL ??
+    `http://${HOST}:9000`
 
 const toUrl = (path: string): string => `${API_BASE_URL}${path}`
 
