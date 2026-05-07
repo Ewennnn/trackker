@@ -203,7 +203,11 @@ func (m *Multiplexer) processControlEvent(evt DisplayModeEvent) {
 	m.controlsBroadcaster.Broadcast(DisplayModeChangeEvent{Mode: m.currentDisplayMode})
 	m.displayBroadcaster.Broadcast(DisplayModeChangeEvent{Mode: m.currentDisplayMode})
 	if evt.DisplayMode == model.DisplayModeLive {
-		m.displayBroadcaster.Broadcast(TrackChangeEvent{Track: *m.currentTrack})
+		if m.currentTrack != nil {
+			m.displayBroadcaster.Broadcast(TrackChangeEvent{Track: *m.currentTrack})
+		} else {
+			m.displayBroadcaster.Broadcast(DisplayModeChangeEvent{Mode: model.DisplayModeFreeze})
+		}
 	}
 }
 
