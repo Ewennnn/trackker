@@ -1,0 +1,20 @@
+server:
+  bind_address: 0.0.0.0 # Unused for the moment
+  port: 9000            # Unused for the moment
+  format: html          # html / json, will be removed in the future to use only json
+
+database:
+  path: ./data/data.db  # Database file path (automatically generated)
+
+tracker:
+  history:
+    source: virtualdj   # Only "virtualdj" value is available for the moment
+    path: C:\Users\<username>\AppData\Local\VirtualDJ\History # VirtualDJ history path, replace <username> with your actual username
+  source:
+    paths:
+      # All your music directory folders, used to retrieve played musics source files
+      - C:\Users\<username>\Music\my_musics
+      - C:\Users\<username>\Music\my_other_musics
+
+control:
+  pin_code: 123123  # 6 numbers pin code to access the control panel, change it for security reasons

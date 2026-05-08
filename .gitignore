@@ -3,6 +3,7 @@
 
 # Application runtime files
 data
+config.yaml
 
 # Application build files
 web-controls/dist
