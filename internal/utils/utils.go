@@ -33,6 +33,7 @@ func Exists(path string) bool {
 	return false
 }
 
+// TODO no longer use Panic
 func SafeClose(file io.Closer) {
 	err := file.Close()
 	if err != nil {

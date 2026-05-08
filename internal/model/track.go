@@ -1,8 +1,9 @@
 package model
 
 import (
-	"djtracker/internal/utils"
+	"fmt"
 	"time"
+	"trackker/internal/utils"
 )
 
 type Track struct {
@@ -29,4 +30,25 @@ func (t *Track) Equals(other *Track) bool {
 		t.Name == other.Name &&
 		t.Path == other.Path &&
 		t.PlayAt == other.PlayAt
+}
+
+type SimpleTrackResponse struct {
+	Title        string `json:"title"`
+	Artist       string `json:"artist"`
+	FilePath     string `json:"filePath"`
+	CoverURLPath string `json:"coverUrl"`
+}
+
+func BuildSupervisionTrackPayload(track Track) SimpleTrackResponse {
+	artist := ""
+	if track.Artist != nil {
+		artist = *track.Artist
+	}
+
+	return SimpleTrackResponse{
+		Title:        track.Name,
+		Artist:       artist,
+		FilePath:     track.Path,
+		CoverURLPath: fmt.Sprintf("/cover/%d", track.ID),
+	}
 }

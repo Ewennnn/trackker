@@ -3,48 +3,43 @@ package service
 import (
 	"bufio"
 	"context"
-	"djtracker/internal/config"
-	"djtracker/internal/model"
-	"djtracker/internal/repository"
-	"djtracker/internal/service/parser"
+	"errors"
 	"log/slog"
+	"sync"
 	"time"
+	"trackker/internal/config"
+	"trackker/internal/model"
+	"trackker/internal/repository"
+	"trackker/internal/service/parser"
 )
 
 type Tracker struct {
 	log    *slog.Logger
 	config *config.Config
 	repo   *repository.Repository
+	parser parser.Parser
 
-	parser        parser.Parser
-	liveTrackList chan *model.Track
-
-	trackBroadcaster *Broadcaster[*model.Track]
+	tracksChan chan *model.Track
+	out        chan<- Event
 }
 
-func NewTracker(log *slog.Logger, config *config.Config, repo *repository.Repository, parser parser.Parser) *Tracker {
+func NewTracker(log *slog.Logger, config *config.Config, repo *repository.Repository, parser parser.Parser, eventbus chan<- Event) *Tracker {
 	return &Tracker{
 		log:    log,
 		config: config,
 		repo:   repo,
+		parser: parser,
 
-		parser:        parser,
-		liveTrackList: make(chan *model.Track, 1),
-
-		trackBroadcaster: NewBroadcaster[*model.Track](log),
+		tracksChan: make(chan *model.Track, 1),
+		out:        eventbus,
 	}
-}
-
-// SubscribeForTracks Créer un nouveau channel abonné à la réception des tracks
-func (t *Tracker) SubscribeForTracks() (chan *model.Track, func()) {
-	return t.trackBroadcaster.Subscribe(1)
 }
 
 // GetCurrentTrack Récupère la track actuelle et l'envoie dans le channel
 func (t *Tracker) GetCurrentTrack() *model.Track {
 	track, err := t.repo.FindLastTrack()
 	if err != nil {
-		t.log.Error("Failed to retrieve current track", err)
+		t.log.Error("Failed to retrieve current track", "err", err)
 		return nil
 	}
 
@@ -61,11 +56,22 @@ func (t *Tracker) GetCurrentTrack() *model.Track {
 	return track
 }
 
-func (t *Tracker) StartTracking(ctx context.Context) {
-	go t.superviseHistoryReader(ctx)
-	go t.listenHistory(ctx)
+// StartTracking Démarre le tracking des tracks, en supervisant la lecture de l'historique et en écoutant les tracks en direct pour alimenter les channels des clients
+func (t *Tracker) StartTracking(ctx context.Context, wg *sync.WaitGroup) {
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		t.superviseHistoryReader(ctx)
+	}()
+	go func() {
+		defer wg.Done()
+		t.listenHistory(ctx)
+	}()
 }
 
+// superviseHistoryReader supervise la lecture de l'historique des tracks.
+// En cas de crash du lecteur, il attend deux secondes avant de le relancer.
+// Le lecteur est arrêté lorsque le contexte est annulé.
 func (t *Tracker) superviseHistoryReader(ctx context.Context) {
 	for {
 		select {
@@ -77,7 +83,7 @@ func (t *Tracker) superviseHistoryReader(ctx context.Context) {
 				return t.handleHistoryReader(ctx, reader)
 			})
 
-			if err != nil {
+			if err != nil && !errors.Is(err, context.Canceled) {
 				t.log.Error("history reader crashed", "err", err)
 				select {
 				case <-ctx.Done():
@@ -89,6 +95,9 @@ func (t *Tracker) superviseHistoryReader(ctx context.Context) {
 	}
 }
 
+// handleHistoryReader récupère la dernière track enregistrée puis les tracks passées jusqu'à la dernière track enregistrée.
+// Les tracks passées et non enregistrées sont sauvegardées. Si la dernière track passée n'est pas finie, elle est envoyée dans le channel des tracks.
+// Ensuite le suivi en direct des tracks est lancé.
 func (t *Tracker) handleHistoryReader(ctx context.Context, reader *bufio.Reader) error {
 	lastSavedTrack, _ := t.repo.FindLastTrack()
 
@@ -101,27 +110,33 @@ func (t *Tracker) handleHistoryReader(ctx context.Context, reader *bufio.Reader)
 		t.processTracks(tracks)
 	}
 
-	return t.parser.StartHistoryTracking(ctx, reader, t.liveTrackList)
+	return t.parser.StartHistoryTracking(ctx, reader, t.tracksChan)
 }
 
+// processTracks traites toutes les tracks passées non enregistrées, en sauvegardant dans l'historique
+// les tracks finies et en envoyant dans le channel la track en cours si elle n'est pas terminée
 func (t *Tracker) processTracks(tracks []*model.Track) {
 	t.saveHistoryTracks(tracks[:len(tracks)-1])
 	t.handleLastTrack(tracks[len(tracks)-1])
 }
 
+// saveHistoryTracks sauvegarde toutes les tracks
 func (t *Tracker) saveHistoryTracks(tracks []*model.Track) {
 	for _, track := range tracks {
 		t.repo.AddTrackToHistory(track)
 	}
 }
 
+// handleLastTrack vérifie si la dernière track est finie ou non.
+// Si elle est finie, elle est sauvegardée dans l'historique.
+// Sinon, elle est envoyée dans le channel des tracks en direct et sera sauvegardée dans listenHistory
 func (t *Tracker) handleLastTrack(track *model.Track) {
 	if track.IsFinished(time.Now()) {
 		t.repo.AddTrackToHistory(track)
 		return
 	}
 
-	t.liveTrackList <- track
+	t.tracksChan <- track
 }
 
 // listenHistory Reçoit les Tracks traités par le Parser
@@ -131,9 +146,9 @@ func (t *Tracker) listenHistory(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case track := <-t.liveTrackList:
+		case track := <-t.tracksChan:
 			t.repo.AddTrackToHistory(track)
-			t.trackBroadcaster.Broadcast(track)
+			t.out <- TrackEvent{Track: *track}
 		}
 	}
 }

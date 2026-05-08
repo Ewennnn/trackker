@@ -1,3 +1,13 @@
 .idea
+**/.env*
+
+# Application runtime files
 data
-*.exe
+config.yaml
+
+# Application build files
+web-controls/dist
+web-controls/node_modules
+internal/**/static/web-controls
+trackker*
+!cmd/api/trackker.ico

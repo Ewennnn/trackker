@@ -1,0 +1,21 @@
+{
+  "name": "controls",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node_modules/.bin/vite",
+    "build": "tsc -b && vite build",
+    "build:prod": "tsc -b && vite build --mode production --outDir ../internal/api/assets/static/web-controls",
+    "preview": "node_modules/.bin/vite preview"
+  },
+  "dependencies": {
+    "solid-js": "^1.9.12"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.2",
+    "typescript": "~6.0.2",
+    "vite": "^8.0.4",
+    "vite-plugin-solid": "^2.11.12"
+  }
+}
