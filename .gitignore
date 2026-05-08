@@ -7,6 +7,6 @@ data
 # Application build files
 web-controls/dist
 web-controls/node_modules
-internal/**/static
+internal/**/static/web-controls
 trackker*
 !cmd/api/trackker.ico

@@ -1,12 +1,12 @@
 //go:build dev
 
-package common
+package assets
 
 import (
 	"io/fs"
 	"os"
 )
 
-func AssetsFS() fs.FS {
+func WebControlsFS() fs.FS {
 	return os.DirFS("web-controls/dist")
 }

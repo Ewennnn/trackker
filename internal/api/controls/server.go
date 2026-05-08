@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 	"trackker/internal/api"
-	"trackker/internal/api/common"
+	"trackker/internal/api/assets"
 	"trackker/internal/service"
 
 	"github.com/alexedwards/scs/v2"
@@ -58,7 +58,7 @@ func (s *Server) Start(ctx context.Context) error {
 	})
 
 	// UI
-	mux.Handle("/", http.FileServer(http.FS(common.AssetsFS())))
+	mux.Handle("/", http.FileServer(http.FS(assets.WebControlsFS())))
 
 	// Security
 	mux.Handle("POST /api/pincode/{code}", s.checkPinCode())

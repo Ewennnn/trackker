@@ -4,34 +4,29 @@ import (
 	"net/http"
 	"time"
 	"trackker/internal/api"
+	"trackker/internal/api/assets"
 	"trackker/internal/model"
 	"trackker/internal/service"
 	"trackker/internal/utils"
 )
 
-func (s *Server) LoadIndex() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "static/index.html")
-	}
-}
-
 func (s *Server) GetCover() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.PathValue("id") == "-1" {
 			// TODO replace by trackker logo
-			http.ServeFile(w, r, "static/evyntia.svg")
+			http.ServeFileFS(w, r, assets.WebDisplayFS(), "evyntia.svg")
 			return
 		}
 
 		current := s.multiplexer.GetCurrentTrack()
 		if current == nil {
-			http.ServeFile(w, r, "static/evyntia.svg")
+			http.ServeFileFS(w, r, assets.WebDisplayFS(), "evyntia.svg")
 			return
 		}
 
 		cover := utils.GetTrackCover(current.Path)
 		if cover == nil {
-			http.ServeFile(w, r, "static/evyntia.svg")
+			http.ServeFileFS(w, r, assets.WebDisplayFS(), "evyntia.svg")
 			return
 		}
 

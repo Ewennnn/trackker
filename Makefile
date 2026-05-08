@@ -31,7 +31,7 @@ install:
 clean:
 	@echo "🧹 Cleaning..."
 	rm -f $(BINARY_NAME)
-	rm -rf $(WEB_DIR)/dist
+	rm -rf ./internal/api/assets/static/web-controls
 	go clean ./...
 
 # -------------------

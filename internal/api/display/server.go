@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"time"
+	"trackker/internal/api/assets"
 	"trackker/internal/api/formatter"
 	"trackker/internal/service"
 )
@@ -35,10 +36,7 @@ func (s *Server) Start(ctx context.Context) error {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	fs := http.FileServer(http.Dir("./static"))
-	mux.Handle("GET /static/", http.StripPrefix("/static/", fs))
-
-	mux.Handle("GET /", s.LoadIndex())
+	mux.Handle("/", http.FileServer(http.FS(assets.WebDisplayFS())))
 	mux.Handle("GET /cover/{id}", s.GetCover())
 	mux.Handle("GET /events", s.ListenDisplayEventsSSE())
 
