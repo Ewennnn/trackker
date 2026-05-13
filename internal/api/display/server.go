@@ -36,7 +36,9 @@ func (s *Server) Start(ctx context.Context) error {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	mux.Handle("/", http.FileServer(http.FS(assets.WebDisplayFS())))
+	fs := http.FileServer(http.FS(assets.WebDisplayFS()))
+	mux.Handle("/", noCache(fs))
+
 	mux.Handle("GET /cover/{id}", s.GetCover())
 	mux.Handle("GET /events", s.ListenDisplayEventsSSE())
 
