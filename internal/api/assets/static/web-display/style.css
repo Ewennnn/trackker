@@ -68,12 +68,12 @@ body {
     width: min(90%, 700px);
     user-select: none;
     animation: slideUp 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both;
-    background: rgba(0, 0, 0, 0.35);
-    backdrop-filter: blur(12px);
+    background: rgba(0, 0, 0, 0.08);
+    backdrop-filter: blur(2px);
     padding: clamp(0.7rem, 1.7vh, 1rem) clamp(1rem, 3.3vw, 2rem);
-    border-radius: 2rem;
-    border: 1.5px solid rgba(255, 255, 255, 0.15);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    border-radius: 1.5rem;
+    border: none;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
 }
 
 .artist-name {
