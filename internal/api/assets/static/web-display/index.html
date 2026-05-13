@@ -77,31 +77,83 @@
         }
 
         /**
-         * Trouve une couleur d'accent avec une teinte très différente du gradient
-         * Cela garantit que la couleur du texte contrastera bien avec le background
+         * Calcule la luminance relative d'une couleur selon WCAG
+         */
+        function getLuminance(r, g, b) {
+            const [rs, gs, bs] = [r, g, b].map(val => {
+                val = val / 255;
+                return val <= 0.03928 ? val / 12.92 : Math.pow((val + 0.055) / 1.055, 2.4);
+            });
+            return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+        }
+
+        /**
+         * Calcule le ratio de contraste WCAG entre deux couleurs
+         */
+        function getContrastRatio(r1, g1, b1, r2, g2, b2) {
+            const lum1 = getLuminance(r1, g1, b1);
+            const lum2 = getLuminance(r2, g2, b2);
+            const lighter = Math.max(lum1, lum2);
+            const darker = Math.min(lum1, lum2);
+            return (lighter + 0.05) / (darker + 0.05);
+        }
+
+        /**
+         * Calcule la luminance moyenne du gradient
+         */
+        function getGradientLuminance(gradientColors) {
+            const luminances = gradientColors.map(c => getLuminance(c.r, c.g, c.b));
+            return luminances.reduce((a, b) => a + b, 0) / luminances.length;
+        }
+
+        /**
+         * Trouve une couleur d'accent avec un bon contraste WCAG
+         * Essaie d'abord les couleurs détectées, puis fallback à noir/blanc
          */
         function findComplementaryHue(gradientColors, allColors) {
-            const gradientHues = gradientColors.map(c => rgbToHue(c.r, c.g, c.b));
+            const bgLuminance = getGradientLuminance(gradientColors);
+
+            // Étape 1: Chercher une couleur avec bon contraste parmi toutes les couleurs détectées
+            let bestColor = null;
+            let bestContrast = 0;
 
             for (const color of allColors) {
-                const hue = rgbToHue(color.r, color.g, color.b);
-                const luma = (color.r * 0.299 + color.g * 0.587 + color.b * 0.114) / 255;
+                // Calculer le contraste avec chaque couleur du gradient et garder le minimum
+                let minContrast = Infinity;
+                for (const gradColor of gradientColors) {
+                    const contrast = getContrastRatio(color.r, color.g, color.b,
+                        gradColor.r, gradColor.g, gradColor.b);
+                    minContrast = Math.min(minContrast, contrast);
+                }
 
-                // Ignorer les couleurs trop claires ou trop sombres
-                if (luma < 0.15 || luma > 0.95) continue;
-
-                // Vérifier que la teinte est très différente
-                const isDifferent = gradientHues.every(gHue => {
-                    const hueDiff = Math.abs(hue - gHue);
-                    const circularDiff = Math.min(hueDiff, 1 - hueDiff);
-                    return circularDiff > 0.15;
-                });
-
-                if (isDifferent) return color;
+                // Garder la couleur avec le meilleur contraste minimum
+                if (minContrast > bestContrast) {
+                    bestContrast = minContrast;
+                    bestColor = color;
+                }
             }
 
-            // Fallback blanc
-            return { r: 255, g: 255, b: 255 };
+            // Si on trouve une couleur avec contraste acceptable (3.0:1), l'utiliser
+            if (bestColor && bestContrast >= 3.0) {
+                return bestColor;
+            }
+
+            // Étape 2: Chercher spécifiquement une couleur avec contraste très bon (4.5:1+)
+            for (const color of allColors) {
+                let minContrast = Infinity;
+                for (const gradColor of gradientColors) {
+                    const contrast = getContrastRatio(color.r, color.g, color.b,
+                        gradColor.r, gradColor.g, gradColor.b);
+                    minContrast = Math.min(minContrast, contrast);
+                }
+
+                if (minContrast >= 4.5) {
+                    return color;
+                }
+            }
+
+            // Étape 3: Fallback à noir ou blanc si aucune couleur détectée n'a bon contraste
+            return bgLuminance > 0.5 ? { r: 0, g: 0, b: 0 } : { r: 255, g: 255, b: 255 };
         }
 
         /**
@@ -206,6 +258,7 @@
     <div hx-ext="sse" sse-connect="/events" sse-swap="track" class="track-container">
         <img src="/cover/-1" alt="cover" class="cover"/>
         <div class="track-info">
+            <span class="artist-name">Artists</span>
             <span class="track-title">Evyntia</span>
         </div>
     </div>
